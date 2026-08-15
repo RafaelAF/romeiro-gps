@@ -17,8 +17,8 @@ PWA mobile-first de turismo e caravanas em tempo real em Aparecida - SP. Stack: 
 A criação/entrada em caravanas/grupos está **desativada por enquanto** (para não consumir banco de dados). O app funciona como **mapa pessoal com líder identificado por celular** e compartilhamento **estático por link** (sem banco, sem tempo real entre aparelhos).
 
 - **Raiz `/`**: ao abrir, o usuário identifica-se com o celular (tela `components/TelaIdentificacao.tsx`, com disclaimer: dados usados apenas para identificação/geração de link). Identificado = líder; **não há toggle de líder**.
-- **Líder**: marca o ponto de encontro com long-press; o drawer tem botão **Compartilhar** que gera um link `/ver?lider=<id>&lat=..&lng=..&rotulo=..` (ponto fixo embutido na URL — link estático).
-- **Rota `/ver`**: visão do seguidor com **apenas o ponto de encontro** (sem POIs, sem localização própria). `app/ver/page.tsx` lê `searchParams` (Promise) e renderiza `components/VerApp.tsx` → `components/VerMapa.tsx` (Leaflet, `ssr: false` via Client Component).
+- **Líder**: marca o ponto de encontro com long-press; o drawer tem botão **Compartilhar** que gera um link `/ver?lider=<id>&lat=..&lng=..&rotulo=..&exp=<ms>` (ponto fixo embutido na URL — link estático). O link é **temporário: válido por 48 h** (`VALIDADE_LINK_MS`); `app/ver/page.tsx` rejeita links sem `exp` ou expirados.
+- **Rota `/ver`**: visão do seguidor com **apenas o ponto de encontro** (sem POIs). O seguidor pode optar por ver a **própria localização** no mapa (botão "Ver minha localização" → `useCaravanaTracking`; se a permissão for negada, mostra "Tentar novamente" para retentar). `app/ver/page.tsx` lê `searchParams` (Promise) e renderiza `components/VerApp.tsx` → `components/VerMapa.tsx` (Leaflet, `ssr: false` via Client Component).
 - `lider` no link é um hash do telefone (`idLider`, `lib/pontoEncontro.ts`) — o telefone **não é exibido** ao seguidor.
 - O ponto de encontro é local ao dispositivo (`lib/pontoEncontro.ts`, `localStorage` + `BroadcastChannel` para sincronizar abas do mesmo navegador).
 

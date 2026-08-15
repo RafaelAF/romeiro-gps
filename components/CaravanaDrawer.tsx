@@ -220,6 +220,9 @@ export default function CaravanaDrawer({
                         <Share2 className="h-5 w-5" />
                         Compartilhar ponto de encontro
                       </button>
+                      <p className="mt-1.5 text-center text-xs font-medium text-zinc-400">
+                        O link é válido por 48 horas.
+                      </p>
                       {feedback && (
                         <p className="mt-2 text-center text-sm font-bold text-emerald-700">
                           {feedback}

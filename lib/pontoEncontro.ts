@@ -75,6 +75,8 @@ export function idLider(telefone: string): string {
   return `lid-${(hash >>> 0).toString(36)}`;
 }
 
+export const VALIDADE_LINK_MS = 48 * 60 * 60 * 1000;
+
 export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string): string {
   const origem = typeof window !== "undefined" ? window.location.origin : "";
   const params = new URLSearchParams({
@@ -82,6 +84,7 @@ export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string
     lat: ponto.lat.toFixed(6),
     lng: ponto.lng.toFixed(6),
     rotulo: ponto.descricao,
+    exp: String(Date.now() + VALIDADE_LINK_MS),
   });
   return `${origem}/ver?${params.toString()}`;
 }

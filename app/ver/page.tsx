@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default async function PaginaVer({
   searchParams,
 }: {
-  searchParams: Promise<{ lat?: string; lng?: string; rotulo?: string }>;
+  searchParams: Promise<{ lat?: string; lng?: string; rotulo?: string; exp?: string }>;
 }) {
   const params = await searchParams;
   const lat = Number(params.lat);
@@ -37,5 +37,12 @@ export default async function PaginaVer({
     );
   }
 
-  return <VerApp lat={lat} lng={lng} rotulo={params.rotulo || "Ponto de Encontro"} />;
+  return (
+    <VerApp
+      lat={lat}
+      lng={lng}
+      rotulo={params.rotulo || "Ponto de Encontro"}
+      exp={params.exp}
+    />
+  );
 }

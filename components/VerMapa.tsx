@@ -1,8 +1,11 @@
 "use client";
 
-import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip } from "react-leaflet";
+import { useState } from "react";
+import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip } from "react-leaflet";
 import L from "leaflet";
+import { Navigation } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import type { VerAppProps } from "@/components/VerApp";
 
 function iconeEncontro(): L.DivIcon {
@@ -15,7 +18,35 @@ function iconeEncontro(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [36, 44], iconAnchor: [18, 42] });
 }
 
+function iconeMinhaPosicao(): L.DivIcon {
+  const html = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 6px rgba(37,99,235,.25),0 1px 6px rgba(0,0,0,.35);"></div>
+      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.9);padding:0 4px;border-radius:6px;color:#1d4ed8;">Você</span>
+    </div>`;
+  return L.divIcon({ className: "", html, iconSize: [56, 44], iconAnchor: [28, 22] });
+}
+
 export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
+  const { posicao, status, erro, iniciar, parar } = useCaravanaTracking();
+  const [mostrarLocal, setMostrarLocal] = useState(false);
+
+  const alternarLocalizacao = () => {
+    if (mostrarLocal) {
+      parar();
+      setMostrarLocal(false);
+      return;
+    }
+    parar();
+    iniciar();
+    setMostrarLocal(true);
+  };
+
+  const tentarNovamente = () => {
+    parar();
+    iniciar();
+  };
+
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
       <MapContainer
@@ -39,6 +70,23 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             {rotulo}
           </Tooltip>
         </Marker>
+
+        {mostrarLocal && posicao && (
+          <>
+            <CircleMarker
+              center={[posicao.lat, posicao.lng]}
+              radius={40}
+              pathOptions={{ color: "#2563eb", weight: 1, fillColor: "#2563eb", fillOpacity: 0.08 }}
+            />
+            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao()}>
+              <Popup>
+                <strong>Você</strong>
+                <br />
+                <span className="text-sm">{`${posicao.lat.toFixed(5)}, ${posicao.lng.toFixed(5)}`}</span>
+              </Popup>
+            </Marker>
+          </>
+        )}
       </MapContainer>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex justify-center p-3">
@@ -55,6 +103,59 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             {lat.toFixed(5)}, {lng.toFixed(5)}
           </p>
         </div>
+      </div>
+
+      <div className="pointer-events-none absolute inset-x-0 bottom-28 z-[900] flex flex-col items-center gap-2 px-4">
+        {mostrarLocal && (status === "negado" || status === "erro") && (
+          <p className="max-w-sm rounded-full bg-white/95 px-4 py-1.5 text-center text-xs font-semibold text-red-700 shadow-md">
+            {status === "negado"
+              ? "Permissão de localização negada."
+              : erro || "Não foi possível obter a localização."}
+          </p>
+        )}
+
+        {mostrarLocal && status === "solicitando" && (
+          <button
+            type="button"
+            disabled
+            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white/95 px-5 py-3 text-sm font-bold text-zinc-500 shadow-md"
+          >
+            <Navigation className="h-5 w-5 animate-pulse" />
+            Buscando localização...
+          </button>
+        )}
+
+        {mostrarLocal && status === "ativo" && (
+          <button
+            type="button"
+            onClick={alternarLocalizacao}
+            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md active:scale-[.98]"
+          >
+            <Navigation className="h-5 w-5" />
+            Minha localização ativa
+          </button>
+        )}
+
+        {!mostrarLocal && (
+          <button
+            type="button"
+            onClick={alternarLocalizacao}
+            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-md active:scale-[.98]"
+          >
+            <Navigation className="h-5 w-5" />
+            Ver minha localização
+          </button>
+        )}
+
+        {mostrarLocal && (status === "negado" || status === "erro") && (
+          <button
+            type="button"
+            onClick={tentarNovamente}
+            className="pointer-events-auto inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-md active:scale-[.98]"
+          >
+            Tentar novamente
+          </button>
+        )}
       </div>
     </div>
   );
