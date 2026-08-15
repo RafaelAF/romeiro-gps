@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CircleMarker,
   MapContainer,
@@ -15,8 +15,6 @@ import { AlertCircle, Flag, Loader2, LocateFixed } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import type { VerAppProps } from "@/components/VerApp";
-
-type Foco = "localizacao" | "encontro" | null;
 
 function iconeEncontro(): L.DivIcon {
   const html = `
@@ -37,32 +35,49 @@ function iconeMinhaPosicao(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [56, 44], iconAnchor: [28, 22] });
 }
 
-function FocosMapa({
-  foco,
-  latAlvo,
-  lngAlvo,
-}: {
-  foco: Foco;
-  latAlvo: number | null;
-  lngAlvo: number | null;
-}) {
+function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   const map = useMap();
   useEffect(() => {
-    if (foco && latAlvo !== null && lngAlvo !== null) {
-      map.flyTo([latAlvo, lngAlvo], Math.max(map.getZoom(), 16), { duration: 0.6 });
-    }
-  }, [foco, latAlvo, lngAlvo, map]);
+    mapaRef.current = map;
+    return () => {
+      mapaRef.current = null;
+    };
+  }, [map, mapaRef]);
   return null;
 }
 
 export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
   const { posicao, status, erro, iniciar, parar } = useCaravanaTracking();
   const [mostrarLocal, setMostrarLocal] = useState(false);
-  const [foco, setFoco] = useState<Foco>(null);
+  const [pedidoLocal, setPedidoLocal] = useState(0);
+  const mapaRef = useRef<L.Map | null>(null);
+  const focarQuandoChegar = useRef(false);
+  const pedidoTs = useRef(0);
+
+  const voarPara = useCallback((latAlvo: number, lngAlvo: number) => {
+    const mapa = mapaRef.current;
+    if (mapa) {
+      mapa.flyTo([latAlvo, lngAlvo], Math.max(mapa.getZoom(), 16), { duration: 0.6 });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (focarQuandoChegar.current && posicao && posicao.ts >= pedidoTs.current) {
+      focarQuandoChegar.current = false;
+      voarPara(posicao.lat, posicao.lng);
+    }
+  }, [posicao, pedidoLocal, voarPara]);
+
+  const pedirFocoNaPosicao = () => {
+    focarQuandoChegar.current = true;
+    pedidoTs.current = Date.now();
+    setPedidoLocal((n) => n + 1);
+  };
 
   const tentarNovamente = () => {
     parar();
     iniciar();
+    pedirFocoNaPosicao();
   };
 
   const aoTocarLocalizacao = () => {
@@ -73,14 +88,15 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
     if (mostrarLocal) {
       parar();
       setMostrarLocal(false);
-      setFoco(null);
       return;
     }
     parar();
     iniciar();
     setMostrarLocal(true);
-    setFoco("localizacao");
+    pedirFocoNaPosicao();
   };
+
+  const focarEncontro = () => voarPara(lat, lng);
 
   const solicitando = mostrarLocal && status === "solicitando";
   const ativa = mostrarLocal && status === "ativo";
@@ -99,6 +115,7 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap"
         />
+        <CapturaMapa mapaRef={mapaRef} />
         <CircleMarker
           center={[lat, lng]}
           radius={24}
@@ -126,12 +143,6 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             </Marker>
           </>
         )}
-
-        <FocosMapa
-          foco={foco}
-          latAlvo={foco === "localizacao" ? (posicao?.lat ?? null) : lat}
-          lngAlvo={foco === "localizacao" ? (posicao?.lng ?? null) : lng}
-        />
       </MapContainer>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex justify-center p-3">
@@ -177,7 +188,7 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
         <button
           type="button"
           aria-label="Focar no ponto de encontro"
-          onClick={() => setFoco("encontro")}
+          onClick={focarEncontro}
           className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-red-600 shadow-lg active:scale-95"
         >
           <Flag className="h-5 w-5" />
