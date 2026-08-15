@@ -68,6 +68,15 @@ export default function CaravanaApp() {
     setPontoEncontro(null);
   }, []);
 
+  const salvarDadosOnibus = useCallback((placa: string, cor: string, detalhe: string) => {
+    setPontoEncontro((prev) => {
+      if (!prev) return null;
+      const novo = { ...prev, onibusPlaca: placa, onibusCor: cor, onibusDetalhe: detalhe };
+      salvarPontoEncontro(novo);
+      return novo;
+    });
+  }, []);
+
   const confirmarTelefone = useCallback((novo: string) => {
     salvarTelefone(novo);
     setTelefone(novo);
@@ -175,6 +184,7 @@ export default function CaravanaApp() {
         aoLimparPontoEncontro={limparPontoEncontro}
         aoTrocarTelefone={trocarTelefone}
         aoCompartilhar={compartilhar}
+        aoSalvarDadosOnibus={salvarDadosOnibus}
       />
     </div>
   );

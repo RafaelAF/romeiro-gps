@@ -21,6 +21,7 @@ import {
   Compass,
   Battery,
   Users,
+  Bus,
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
@@ -85,7 +86,15 @@ function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   return null;
 }
 
-export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
+export default function VerMapa({
+  lat,
+  lng,
+  rotulo,
+  sessao,
+  onibusPlaca,
+  onibusCor,
+  onibusDetalhe,
+}: VerAppProps) {
   const { posicao: posicaoLocal, status, erro, iniciar, parar } = useCaravanaTracking();
   const [mostrarLocal, setMostrarLocal] = useState(false);
   const [pedidoLocal, setPedidoLocal] = useState(0);
@@ -254,13 +263,22 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
   const totalOnline = membros.filter(m => m.online).length + (compartilhando ? 1 : 0);
   const statusAvisoValido = statusText !== "" && (agora - statusTs <= 15000);
 
+  const temDadosOnibus = onibusPlaca || onibusCor || onibusDetalhe;
+
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
-      {/* Estilo para animação do bounce do emoji de status */}
+      {/* Estilo para animação do bounce do emoji de status e animação do tooltip */}
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes bounce {
           from { transform: translate(-50%, 0); }
           to { transform: translate(-50%, -6px); }
+        }
+        @keyframes fadeInRight {
+          from { opacity: 0; transform: translateX(-8px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-fade-in-right {
+          animation: fadeInRight 0.25s ease-out forwards;
         }
       `}} />
 
@@ -285,6 +303,29 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
           <Tooltip direction="top" offset={[0, -10]} permanent>
             {rotulo}
           </Tooltip>
+          {temDadosOnibus && (
+            <Popup>
+              <div className="text-sm min-w-[160px]">
+                <p className="font-extrabold text-red-700 flex items-center gap-1">
+                  <Bus className="h-4.5 w-4.5" />
+                  DADOS DO ÔNIBUS
+                </p>
+                <div className="mt-1.5 space-y-1 text-zinc-700">
+                  {onibusCor && (
+                    <p className="font-bold text-zinc-900">{onibusCor}</p>
+                  )}
+                  {onibusPlaca && (
+                    <p className="text-xs">Placa: <span className="font-mono font-bold text-zinc-800 bg-zinc-100 px-1 rounded">{onibusPlaca}</span></p>
+                  )}
+                  {onibusDetalhe && (
+                    <p className="text-xs italic bg-amber-50 border-l-2 border-amber-500 px-1.5 py-0.5 rounded text-amber-850">
+                      &quot;{onibusDetalhe}&quot;
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Popup>
+          )}
         </Marker>
 
         {mostrarLocal && posicao && (
@@ -406,17 +447,25 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
           {Object.keys(STATUS_CONFIGS).map((emoji) => {
             const ativo = statusText === emoji && statusAvisoValido;
             return (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => aoTocarEmoji(emoji)}
-                className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-all active:scale-90 ${
-                  ativo ? "bg-blue-100 shadow-inner scale-95 border-2 border-blue-200" : "hover:bg-zinc-100 active:bg-zinc-200"
-                }`}
-                title={STATUS_CONFIGS[emoji].label}
-              >
-                {emoji}
-              </button>
+              <div key={emoji} className="relative flex items-center">
+                <button
+                  type="button"
+                  onClick={() => aoTocarEmoji(emoji)}
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-all active:scale-90 ${
+                    ativo ? "bg-blue-100 shadow-inner scale-95 border-2 border-blue-200" : "hover:bg-zinc-100 active:bg-zinc-200"
+                  }`}
+                  title={STATUS_CONFIGS[emoji].label}
+                >
+                  {emoji}
+                </button>
+                {/* Balão (Tooltip) dinâmico à direita do botão ativo */}
+                {ativo && (
+                  <div className="absolute left-13 z-[1000] ml-1 bg-blue-900 text-white text-[10px] font-bold py-1.5 px-3 rounded-xl shadow-lg whitespace-nowrap pointer-events-none animate-fade-in-right border border-blue-800 flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                    {STATUS_CONFIGS[emoji].label}
+                  </div>
+                )}
+              </div>
             );
           })}
           
@@ -425,7 +474,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
             <button
               type="button"
               onClick={() => enviarStatus("")}
-              className="flex h-11 w-11 items-center justify-center rounded-xl text-xs font-bold text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors border-t border-zinc-100 mt-1 pt-1"
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-xs font-bold text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors border-t border-zinc-100 mt-1 pt-1 animate-fade-in-right"
               title="Limpar aviso"
             >
               ❌
@@ -492,29 +541,52 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
 
       {/* Rodapé Dinâmico com Informações e Rota */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[900] p-3">
-        <div className="mx-auto max-w-2xl rounded-2xl bg-white px-5 py-4 shadow-lg flex items-center justify-between gap-4 pointer-events-auto">
-          <div className="min-w-0">
-            <p className="text-base font-extrabold text-zinc-900 truncate">{rotulo}</p>
-            <p className="mt-0.5 font-mono text-xs text-zinc-500">
-              {lat.toFixed(5)}, {lng.toFixed(5)}
-            </p>
-            {sessao && (
-              <p className="mt-1 text-xs font-medium text-zinc-400 truncate">
-                {compartilhando
-                  ? `Compartilhando como "${nome}"`
-                  : "Toque em 📡 para compartilhar com o grupo"}
-              </p>
-            )}
-          </div>
+        <div className="mx-auto max-w-2xl rounded-2xl bg-white px-5 py-4 shadow-lg flex flex-col gap-2.5 pointer-events-auto">
           
-          <button
-            type="button"
-            onClick={() => abrirRotaExterna()}
-            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-sm active:scale-95 transition-transform"
-          >
-            <Compass className="h-4.5 w-4.5" />
-            Rota
-          </button>
+          {/* Dados do Ônibus Expostos no Rodapé do Seguidor */}
+          {temDadosOnibus && (
+            <div className="flex flex-col gap-1 border-b border-zinc-100 pb-2.5 text-xs text-zinc-700">
+              <p className="flex items-center gap-1.5 font-bold text-zinc-900">
+                <Bus className="h-4 w-4 text-blue-900 shrink-0" />
+                {onibusCor || "Ônibus da Caravana"}
+                {onibusPlaca && (
+                  <span className="font-mono bg-zinc-150 px-1.5 py-0.5 rounded font-bold text-zinc-850 ml-1">
+                    {onibusPlaca}
+                  </span>
+                )}
+              </p>
+              {onibusDetalhe && (
+                <p className="text-zinc-500 font-medium italic pl-5">
+                  Detalhe: &quot;{onibusDetalhe}&quot;
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-base font-extrabold text-zinc-900 truncate">{rotulo}</p>
+              <p className="mt-0.5 font-mono text-xs text-zinc-500">
+                {lat.toFixed(5)}, {lng.toFixed(5)}
+              </p>
+              {sessao && (
+                <p className="mt-1 text-xs font-medium text-zinc-400 truncate">
+                  {compartilhando
+                    ? `Compartilhando como "${nome}"`
+                    : "Toque em 📡 para compartilhar com o grupo"}
+                </p>
+              )}
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => abrirRotaExterna()}
+              className="shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-sm active:scale-95 transition-transform"
+            >
+              <Compass className="h-4.5 w-4.5" />
+              Rota
+            </button>
+          </div>
         </div>
       </div>
 
