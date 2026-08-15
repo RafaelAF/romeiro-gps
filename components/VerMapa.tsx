@@ -20,6 +20,7 @@ import {
   RadioTower,
   Compass,
   Battery,
+  Users,
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
@@ -192,24 +193,33 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     }, 100);
   };
 
-  const focarEncontro = () => voarPara(lat, lng);
+  const aoTocarEmoji = (emoji: string) => {
+    const statusAtivo = statusText === emoji && (agora - statusTs <= 15000);
+    if (statusAtivo) {
+      void enviarStatus(""); // Limpa se clicar no que já está ativo
+    } else {
+      void enviarStatus(emoji);
+    }
+  };
 
-  const abrirRotaExterna = () => {
+  const abrirRotaExterna = (destinoLat?: number, destinoLng?: number) => {
     let url = "";
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const dLat = destinoLat !== undefined ? destinoLat : lat;
+    const dLng = destinoLng !== undefined ? destinoLng : lng;
     
     // Se tiver localização atual do usuário, monta rota origem -> destino
     if (posicao) {
       const orig = `${posicao.lat},${posicao.lng}`;
-      const dest = `${lat},${lng}`;
+      const dest = `${dLat},${dLng}`;
       if (isIOS) {
         url = `maps://maps.apple.com/?saddr=${orig}&daddr=${dest}&dirflg=w`;
       } else {
         url = `https://www.google.com/maps/dir/?api=1&origin=${orig}&destination=${dest}&travelmode=walking`;
       }
     } else {
-      // Se não tiver localização do usuário, apenas abre o ponto de encontro
-      const dest = `${lat},${lng}`;
+      // Se não tiver localização do usuário, apenas abre o destino
+      const dest = `${dLat},${dLng}`;
       if (isIOS) {
         url = `maps://maps.apple.com/?q=${dest}`;
       } else {
@@ -219,10 +229,30 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     window.open(url, "_blank");
   };
 
+  const focarGrupo = () => {
+    const mapa = mapaRef.current;
+    if (!mapa) return;
+    
+    const limites = L.latLngBounds([lat, lng], [lat, lng]); // Inicia com o ponto de encontro
+    
+    if (posicao) {
+      limites.extend([posicao.lat, posicao.lng]);
+    }
+    
+    membros.filter(m => m.online).forEach((m) => {
+      limites.extend([m.lat, m.lng]);
+    });
+    
+    mapa.fitBounds(limites, { padding: [50, 50], maxZoom: 17 });
+  };
+
+  const focarEncontro = () => voarPara(lat, lng);
+
   const solicitando = mostrarLocal && status === "solicitando";
   const ativa = mostrarLocal && status === "ativo";
   const erroLocal = mostrarLocal && (status === "negado" || status === "erro");
   const totalOnline = membros.filter(m => m.online).length + (compartilhando ? 1 : 0);
+  const statusAvisoValido = statusText !== "" && (agora - statusTs <= 15000);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
@@ -286,7 +316,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
               icon={iconeMembro(m.cor, m.nome || "Sem nome", m.online, m.status, statusAtivo)}
             >
               <Popup>
-                <div className="text-sm">
+                <div className="text-sm min-w-[150px]">
                   <p className="font-extrabold" style={{ color: m.cor }}>
                     {m.nome || "Sem nome"}
                     <span className={`ml-2 inline-block h-2 w-2 rounded-full ${m.online ? "bg-emerald-500" : "bg-zinc-400"}`} />
@@ -311,6 +341,17 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
                     </p>
                     <p>Sinal GPS: ±{m.precisao}m</p>
                   </div>
+
+                  {posicao && (
+                    <button
+                      type="button"
+                      onClick={() => abrirRotaExterna(m.lat, m.lng)}
+                      className="mt-2.5 flex items-center justify-center gap-1 w-full rounded-xl bg-blue-700 py-2 text-xs font-bold text-white active:scale-95 transition-transform"
+                    >
+                      <Compass className="h-3.5 w-3.5" />
+                      Rota até {m.nome || "Membro"}
+                    </button>
+                  )}
                 </div>
               </Popup>
             </Marker>
@@ -363,14 +404,14 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
             Avisar
           </p>
           {Object.keys(STATUS_CONFIGS).map((emoji) => {
-            const ativo = statusText === emoji && (agora - statusTs <= 15000);
+            const ativo = statusText === emoji && statusAvisoValido;
             return (
               <button
                 key={emoji}
                 type="button"
-                onClick={() => enviarStatus(emoji)}
+                onClick={() => aoTocarEmoji(emoji)}
                 className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-all active:scale-90 ${
-                  ativo ? "bg-zinc-200 shadow-inner scale-95 border-2 border-zinc-300" : "hover:bg-zinc-100 active:bg-zinc-200"
+                  ativo ? "bg-blue-100 shadow-inner scale-95 border-2 border-blue-200" : "hover:bg-zinc-100 active:bg-zinc-200"
                 }`}
                 title={STATUS_CONFIGS[emoji].label}
               >
@@ -378,6 +419,18 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
               </button>
             );
           })}
+          
+          {/* Botão para limpar status manualmente */}
+          {statusAvisoValido && (
+            <button
+              type="button"
+              onClick={() => enviarStatus("")}
+              className="flex h-11 w-11 items-center justify-center rounded-xl text-xs font-bold text-zinc-400 hover:text-red-500 hover:bg-red-50 transition-colors border-t border-zinc-100 mt-1 pt-1"
+              title="Limpar aviso"
+            >
+              ❌
+            </button>
+          )}
         </div>
       )}
 
@@ -397,6 +450,18 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
             ) : (
               <Radio className="h-5 w-5" />
             )}
+          </button>
+        )}
+
+        {/* Botão Focar Grupo */}
+        {sessao && (membros.filter(m => m.online).length > 0 || posicao) && (
+          <button
+            type="button"
+            aria-label="Ver todo o grupo no mapa"
+            onClick={focarGrupo}
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-blue-900 shadow-lg active:scale-95 border border-zinc-200"
+          >
+            <Users className="h-5 w-5" />
           </button>
         )}
 
@@ -444,7 +509,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
           
           <button
             type="button"
-            onClick={abrirRotaExterna}
+            onClick={() => abrirRotaExterna()}
             className="shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-sm active:scale-95 transition-transform"
           >
             <Compass className="h-4.5 w-4.5" />
