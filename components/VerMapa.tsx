@@ -11,9 +11,10 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import { AlertCircle, Flag, Loader2, LocateFixed } from "lucide-react";
+import { AlertCircle, Flag, Loader2, LocateFixed, Radio, RadioTower } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
+import { useSessaoRealtime } from "@/lib/useSessaoRealtime";
 import type { VerAppProps } from "@/components/VerApp";
 
 function iconeEncontro(): L.DivIcon {
@@ -35,6 +36,15 @@ function iconeMinhaPosicao(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [56, 44], iconAnchor: [28, 22] });
 }
 
+function iconeMembro(cor: string, label: string): L.DivIcon {
+  const html = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+      <div style="width:16px;height:16px;border-radius:9999px;background:${cor};border:3px solid #ffffff;box-shadow:0 0 0 5px ${cor}40,0 1px 6px rgba(0,0,0,.35);"></div>
+      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.9);padding:0 4px;border-radius:6px;color:${cor};white-space:nowrap;">${label}</span>
+    </div>`;
+  return L.divIcon({ className: "", html, iconSize: [64, 42], iconAnchor: [32, 20] });
+}
+
 function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   const map = useMap();
   useEffect(() => {
@@ -46,13 +56,23 @@ function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   return null;
 }
 
-export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
-  const { posicao, status, erro, iniciar, parar } = useCaravanaTracking();
+export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
+  const { posicao: posicaoLocal, status, erro, iniciar, parar } = useCaravanaTracking();
   const [mostrarLocal, setMostrarLocal] = useState(false);
   const [pedidoLocal, setPedidoLocal] = useState(0);
   const mapaRef = useRef<L.Map | null>(null);
   const focarQuandoChegar = useRef(false);
   const pedidoTs = useRef(0);
+
+  const {
+    membros,
+    posicao: posicaoCompartilhada,
+    compartilhando,
+    ativarCompartilhamento,
+    desativarCompartilhamento,
+  } = useSessaoRealtime(sessao);
+
+  const posicao = compartilhando ? posicaoCompartilhada : posicaoLocal;
 
   const voarPara = useCallback((latAlvo: number, lngAlvo: number) => {
     const mapa = mapaRef.current;
@@ -96,11 +116,22 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
     pedirFocoNaPosicao();
   };
 
+  const aoTocarCompartilhar = () => {
+    if (compartilhando) {
+      desativarCompartilhamento();
+    } else {
+      ativarCompartilhamento();
+      setMostrarLocal(true);
+      pedirFocoNaPosicao();
+    }
+  };
+
   const focarEncontro = () => voarPara(lat, lng);
 
   const solicitando = mostrarLocal && status === "solicitando";
   const ativa = mostrarLocal && status === "ativo";
   const erroLocal = mostrarLocal && (status === "negado" || status === "erro");
+  const totalOnline = membros.length + (compartilhando ? 1 : 0);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
@@ -143,6 +174,20 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             </Marker>
           </>
         )}
+
+        {membros.map((m, i) => (
+          <Marker
+            key={m.id}
+            position={[m.lat, m.lng]}
+            icon={iconeMembro(m.cor, `Pessoa ${i + 1}`)}
+          >
+            <Popup>
+              <strong>Pessoa {i + 1}</strong>
+              <br />
+              <span className="text-sm">{`${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}`}</span>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex justify-center p-3">
@@ -151,6 +196,17 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
           <p className="text-[11px] font-medium text-zinc-500">Ponto de encontro · Aparecida - SP</p>
         </div>
       </div>
+
+      {sessao && totalOnline > 0 && (
+        <div className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-[900] flex justify-center px-3">
+          <div className="flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-3 py-1 shadow">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+            <span className="text-xs font-bold text-white">
+              {totalOnline} {totalOnline === 1 ? "pessoa" : "pessoas"} online
+            </span>
+          </div>
+        </div>
+      )}
 
       {erroLocal && (
         <div className="absolute inset-x-0 top-16 z-[900] flex justify-center px-4">
@@ -170,6 +226,23 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
       )}
 
       <div className="absolute bottom-28 right-3 z-[900] flex flex-col gap-2">
+        {sessao && (
+          <button
+            type="button"
+            aria-label={compartilhando ? "Parar de compartilhar localização" : "Compartilhar minha localização com o grupo"}
+            onClick={aoTocarCompartilhar}
+            className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg active:scale-95 ${
+              compartilhando ? "bg-emerald-600 text-white" : "bg-white text-emerald-700"
+            }`}
+          >
+            {compartilhando ? (
+              <RadioTower className="h-5 w-5" />
+            ) : (
+              <Radio className="h-5 w-5" />
+            )}
+          </button>
+        )}
+
         <button
           type="button"
           aria-label={ativa ? "Ocultar minha localização" : "Ver minha localização"}
@@ -201,6 +274,13 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
           <p className="mt-0.5 font-mono text-xs text-zinc-500">
             {lat.toFixed(5)}, {lng.toFixed(5)}
           </p>
+          {sessao && (
+            <p className="mt-1.5 text-xs font-medium text-zinc-400">
+              {compartilhando
+                ? "Sua localização está sendo compartilhada com o grupo"
+                : "Toque em 📡 para compartilhar sua localização com o grupo"}
+            </p>
+          )}
         </div>
       </div>
     </div>
