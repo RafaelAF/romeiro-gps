@@ -11,11 +11,27 @@ import {
   useMap,
 } from "react-leaflet";
 import L from "leaflet";
-import { AlertCircle, Flag, Loader2, LocateFixed, Radio, RadioTower } from "lucide-react";
+import {
+  AlertCircle,
+  Flag,
+  Loader2,
+  LocateFixed,
+  Radio,
+  RadioTower,
+  Compass,
+  Battery,
+} from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import { useSessaoRealtime } from "@/lib/useSessaoRealtime";
 import type { VerAppProps } from "@/components/VerApp";
+
+const STATUS_CONFIGS: Record<string, { label: string; cor: string }> = {
+  "🚨": { label: "Preciso de ajuda!", cor: "#dc2626" },
+  "🚶‍♂️": { label: "A caminho", cor: "#2563eb" },
+  "📍": { label: "Cheguei no ponto", cor: "#16a34a" },
+  "🍕": { label: "Comendo/Comprando", cor: "#d97706" },
+};
 
 function iconeEncontro(): L.DivIcon {
   const html = `
@@ -27,22 +43,34 @@ function iconeEncontro(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [36, 44], iconAnchor: [18, 42] });
 }
 
-function iconeMinhaPosicao(): L.DivIcon {
+function iconeMinhaPosicao(nome: string): L.DivIcon {
+  const label = nome ? `Você (${nome})` : "Você";
   const html = `
     <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
       <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 6px rgba(37,99,235,.25),0 1px 6px rgba(0,0,0,.35);"></div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.9);padding:0 4px;border-radius:6px;color:#1d4ed8;">Você</span>
+      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;">${label}</span>
     </div>`;
-  return L.divIcon({ className: "", html, iconSize: [56, 44], iconAnchor: [28, 22] });
+  return L.divIcon({ className: "", html, iconSize: [80, 44], iconAnchor: [40, 22] });
 }
 
-function iconeMembro(cor: string, label: string): L.DivIcon {
+function iconeMembro(cor: string, label: string, online: boolean, status: string, statusAtivo: boolean): L.DivIcon {
+  const opacidade = online ? "1" : "0.45";
+  const filtro = online ? "" : "filter: grayscale(0.85);";
+  const statusHtml = status && statusAtivo
+    ? `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:#ffffff;border:2px solid ${cor};border-radius:999px;padding:2px 6px;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;animation: bounce 1s infinite alternate;">
+         ${status}
+       </div>`
+    : "";
+
   const html = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;opacity:${opacidade};${filtro}position:relative;">
+      ${statusHtml}
       <div style="width:16px;height:16px;border-radius:9999px;background:${cor};border:3px solid #ffffff;box-shadow:0 0 0 5px ${cor}40,0 1px 6px rgba(0,0,0,.35);"></div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.9);padding:0 4px;border-radius:6px;color:${cor};white-space:nowrap;">${label}</span>
+      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:${online ? cor : "#71717a"};box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;">
+        ${label} ${online ? "" : " (offline)"}
+      </span>
     </div>`;
-  return L.divIcon({ className: "", html, iconSize: [64, 42], iconAnchor: [32, 20] });
+  return L.divIcon({ className: "", html, iconSize: [80, 42], iconAnchor: [40, 20] });
 }
 
 function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
@@ -69,7 +97,10 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     posicao: posicaoCompartilhada,
     compartilhando,
     nome,
+    statusText,
+    statusTs,
     definirNome,
+    enviarStatus,
     ativarCompartilhamento,
     desativarCompartilhamento,
   } = useSessaoRealtime(sessao);
@@ -77,6 +108,13 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
   const [exibirModalNome, setExibirModalNome] = useState(false);
   const [nomeInput, setNomeInput] = useState("");
   const [erroNome, setErroNome] = useState<string | null>(null);
+  const [agora, setAgora] = useState(() => Date.now());
+
+  // Atualiza o timer interno a cada segundo para refrescar status e tempo offline
+  useEffect(() => {
+    const int = setInterval(() => setAgora(Date.now()), 1000);
+    return () => clearInterval(int);
+  }, []);
 
   const posicao = compartilhando ? posicaoCompartilhada : posicaoLocal;
 
@@ -147,7 +185,6 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     definirNome(limpo);
     setExibirModalNome(false);
     
-    // Inicia compartilhamento logo em seguida
     setTimeout(() => {
       ativarCompartilhamento();
       setMostrarLocal(true);
@@ -157,13 +194,46 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
 
   const focarEncontro = () => voarPara(lat, lng);
 
+  const abrirRotaExterna = () => {
+    let url = "";
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    // Se tiver localização atual do usuário, monta rota origem -> destino
+    if (posicao) {
+      const orig = `${posicao.lat},${posicao.lng}`;
+      const dest = `${lat},${lng}`;
+      if (isIOS) {
+        url = `maps://maps.apple.com/?saddr=${orig}&daddr=${dest}&dirflg=w`;
+      } else {
+        url = `https://www.google.com/maps/dir/?api=1&origin=${orig}&destination=${dest}&travelmode=walking`;
+      }
+    } else {
+      // Se não tiver localização do usuário, apenas abre o ponto de encontro
+      const dest = `${lat},${lng}`;
+      if (isIOS) {
+        url = `maps://maps.apple.com/?q=${dest}`;
+      } else {
+        url = `https://www.google.com/maps/search/?api=1&query=${dest}`;
+      }
+    }
+    window.open(url, "_blank");
+  };
+
   const solicitando = mostrarLocal && status === "solicitando";
   const ativa = mostrarLocal && status === "ativo";
   const erroLocal = mostrarLocal && (status === "negado" || status === "erro");
-  const totalOnline = membros.length + (compartilhando ? 1 : 0);
+  const totalOnline = membros.filter(m => m.online).length + (compartilhando ? 1 : 0);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
+      {/* Estilo para animação do bounce do emoji de status */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes bounce {
+          from { transform: translate(-50%, 0); }
+          to { transform: translate(-50%, -6px); }
+        }
+      `}} />
+
       <MapContainer
         center={[lat, lng]}
         zoom={16}
@@ -194,31 +264,61 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
               radius={40}
               pathOptions={{ color: "#2563eb", weight: 1, fillColor: "#2563eb", fillOpacity: 0.08 }}
             />
-            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao()}>
+            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao(nome)}>
               <Popup>
-                <strong>Você {nome ? `(${nome})` : ""}</strong>
-                <br />
-                <span className="text-sm">{`${posicao.lat.toFixed(5)}, ${posicao.lng.toFixed(5)}`}</span>
+                <div className="text-sm">
+                  <p className="font-extrabold text-blue-900">Você {nome ? `(${nome})` : ""}</p>
+                  <p className="font-medium text-zinc-500 mt-1">
+                    Precisão GPS: ±{Math.round(posicao.precisao)}m
+                  </p>
+                </div>
               </Popup>
             </Marker>
           </>
         )}
 
-        {membros.map((m) => (
-          <Marker
-            key={m.id}
-            position={[m.lat, m.lng]}
-            icon={iconeMembro(m.cor, m.nome)}
-          >
-            <Popup>
-              <strong>{m.nome}</strong>
-              <br />
-              <span className="text-sm">{`${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}`}</span>
-            </Popup>
-          </Marker>
-        ))}
+        {membros.map((m) => {
+          const statusAtivo = agora - m.statusTs <= 15_000;
+          return (
+            <Marker
+              key={m.id}
+              position={[m.lat, m.lng]}
+              icon={iconeMembro(m.cor, m.nome || "Sem nome", m.online, m.status, statusAtivo)}
+            >
+              <Popup>
+                <div className="text-sm">
+                  <p className="font-extrabold" style={{ color: m.cor }}>
+                    {m.nome || "Sem nome"}
+                    <span className={`ml-2 inline-block h-2 w-2 rounded-full ${m.online ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                  </p>
+                  
+                  {!m.online && (
+                    <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider mt-0.5">
+                      Offline (Visto há {Math.round((agora - m.ts) / 60_000)} min)
+                    </p>
+                  )}
+
+                  {m.status && statusAtivo && (
+                    <p className="mt-1 rounded bg-zinc-100 px-2 py-1 font-bold text-zinc-800 border-l-4" style={{ borderColor: m.cor }}>
+                      {m.status} {STATUS_CONFIGS[m.status]?.label || ""}
+                    </p>
+                  )}
+
+                  <div className="mt-2 space-y-0.5 text-xs text-zinc-500 border-t border-zinc-100 pt-1.5">
+                    <p className="flex items-center gap-1">
+                      <Battery className="h-3.5 w-3.5" />
+                      Bateria: {m.bateria !== null ? `${m.bateria}%` : "Desconhecida"}
+                    </p>
+                    <p>Sinal GPS: ±{m.precisao}m</p>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
       </MapContainer>
 
+      {/* Identificação da Aplicação */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex justify-center p-3">
         <div className="rounded-2xl bg-white/95 px-4 py-2 shadow-md">
           <p className="text-sm font-extrabold text-blue-900">RomeiroGPS</p>
@@ -226,6 +326,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
         </div>
       </div>
 
+      {/* Indicador de Membros Online */}
       {sessao && totalOnline > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-[900] flex justify-center px-3">
           <div className="flex items-center gap-1.5 rounded-full bg-emerald-600/90 px-3 py-1 shadow">
@@ -237,6 +338,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
         </div>
       )}
 
+      {/* Erro de Geolocalização */}
       {erroLocal && (
         <div className="absolute inset-x-0 top-16 z-[900] flex justify-center px-4">
           <button
@@ -254,6 +356,32 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
         </div>
       )}
 
+      {/* Barra Flutuante de Reações (Emoji Shouts) no lado esquerdo */}
+      {compartilhando && (
+        <div className="absolute left-3 top-1/2 z-[900] flex -translate-y-1/2 flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg border border-zinc-200">
+          <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-400 text-center mb-1 select-none">
+            Avisar
+          </p>
+          {Object.keys(STATUS_CONFIGS).map((emoji) => {
+            const ativo = statusText === emoji && (agora - statusTs <= 15000);
+            return (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => enviarStatus(emoji)}
+                className={`flex h-11 w-11 items-center justify-center rounded-xl text-xl transition-all active:scale-90 ${
+                  ativo ? "bg-zinc-200 shadow-inner scale-95 border-2 border-zinc-300" : "hover:bg-zinc-100 active:bg-zinc-200"
+                }`}
+                title={STATUS_CONFIGS[emoji].label}
+              >
+                {emoji}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Botões de Controle e Ações do Mapa */}
       <div className="absolute bottom-28 right-3 z-[900] flex flex-col gap-2">
         {sessao && (
           <button
@@ -297,22 +425,35 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
         </button>
       </div>
 
+      {/* Rodapé Dinâmico com Informações e Rota */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[900] p-3">
-        <div className="mx-auto max-w-2xl rounded-2xl bg-white px-5 py-4 shadow-lg">
-          <p className="text-base font-extrabold text-zinc-900">{rotulo}</p>
-          <p className="mt-0.5 font-mono text-xs text-zinc-500">
-            {lat.toFixed(5)}, {lng.toFixed(5)}
-          </p>
-          {sessao && (
-            <p className="mt-1.5 text-xs font-medium text-zinc-400">
-              {compartilhando
-                ? `Compartilhando sua localização como "${nome}"`
-                : "Toque em 📡 para compartilhar sua localização com o grupo"}
+        <div className="mx-auto max-w-2xl rounded-2xl bg-white px-5 py-4 shadow-lg flex items-center justify-between gap-4 pointer-events-auto">
+          <div className="min-w-0">
+            <p className="text-base font-extrabold text-zinc-900 truncate">{rotulo}</p>
+            <p className="mt-0.5 font-mono text-xs text-zinc-500">
+              {lat.toFixed(5)}, {lng.toFixed(5)}
             </p>
-          )}
+            {sessao && (
+              <p className="mt-1 text-xs font-medium text-zinc-400 truncate">
+                {compartilhando
+                  ? `Compartilhando como "${nome}"`
+                  : "Toque em 📡 para compartilhar com o grupo"}
+              </p>
+            )}
+          </div>
+          
+          <button
+            type="button"
+            onClick={abrirRotaExterna}
+            className="shrink-0 flex items-center gap-1.5 rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white shadow-sm active:scale-95 transition-transform"
+          >
+            <Compass className="h-4.5 w-4.5" />
+            Rota
+          </button>
         </div>
       </div>
 
+      {/* Modal para Identificação do Seguidor */}
       {exibirModalNome && (
         <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">

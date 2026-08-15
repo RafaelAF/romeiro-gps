@@ -1,4 +1,4 @@
-import { assinar, listarMembros, type PosicaoMembro } from "@/lib/sessoes";
+import { assinar, listarMembros, marcarOffline, type PosicaoMembro } from "@/lib/sessoes";
 
 export const dynamic = "force-dynamic";
 
@@ -7,10 +7,12 @@ function evento(dados: PosicaoMembro): string {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: sessaoId } = await params;
+  const { searchParams } = new URL(request.url);
+  const membroId = searchParams.get("membroId");
 
   const snapshot = listarMembros(sessaoId);
 
@@ -39,9 +41,12 @@ export async function GET(
         }
       }, 25_000);
 
-      _request.signal.addEventListener("abort", () => {
+      request.signal.addEventListener("abort", () => {
         cancelar();
         clearInterval(heartbeat);
+        if (membroId) {
+          marcarOffline(sessaoId, membroId);
+        }
         try {
           controller.close();
         } catch {
