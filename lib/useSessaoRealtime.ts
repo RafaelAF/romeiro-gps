@@ -188,7 +188,7 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
 
   const enviarStatus = useCallback(
     async (novoStatus: string) => {
-      const ts = Date.now();
+      const ts = novoStatus === "" ? 0 : Date.now();
       setStatusText(novoStatus);
       setStatusTs(ts);
       
