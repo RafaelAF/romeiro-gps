@@ -1,12 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { CircleMarker, MapContainer, Marker, Popup, TileLayer, Tooltip } from "react-leaflet";
+import { useEffect, useState } from "react";
+import {
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Popup,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
-import { Navigation } from "lucide-react";
+import { AlertCircle, Flag, Loader2, LocateFixed } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import type { VerAppProps } from "@/components/VerApp";
+
+type Foco = "localizacao" | "encontro" | null;
 
 function iconeEncontro(): L.DivIcon {
   const html = `
@@ -27,25 +37,54 @@ function iconeMinhaPosicao(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [56, 44], iconAnchor: [28, 22] });
 }
 
+function FocosMapa({
+  foco,
+  latAlvo,
+  lngAlvo,
+}: {
+  foco: Foco;
+  latAlvo: number | null;
+  lngAlvo: number | null;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    if (foco && latAlvo !== null && lngAlvo !== null) {
+      map.flyTo([latAlvo, lngAlvo], Math.max(map.getZoom(), 16), { duration: 0.6 });
+    }
+  }, [foco, latAlvo, lngAlvo, map]);
+  return null;
+}
+
 export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
   const { posicao, status, erro, iniciar, parar } = useCaravanaTracking();
   const [mostrarLocal, setMostrarLocal] = useState(false);
-
-  const alternarLocalizacao = () => {
-    if (mostrarLocal) {
-      parar();
-      setMostrarLocal(false);
-      return;
-    }
-    parar();
-    iniciar();
-    setMostrarLocal(true);
-  };
+  const [foco, setFoco] = useState<Foco>(null);
 
   const tentarNovamente = () => {
     parar();
     iniciar();
   };
+
+  const aoTocarLocalizacao = () => {
+    if (mostrarLocal && (status === "negado" || status === "erro")) {
+      tentarNovamente();
+      return;
+    }
+    if (mostrarLocal) {
+      parar();
+      setMostrarLocal(false);
+      setFoco(null);
+      return;
+    }
+    parar();
+    iniciar();
+    setMostrarLocal(true);
+    setFoco("localizacao");
+  };
+
+  const solicitando = mostrarLocal && status === "solicitando";
+  const ativa = mostrarLocal && status === "ativo";
+  const erroLocal = mostrarLocal && (status === "negado" || status === "erro");
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
@@ -87,6 +126,12 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             </Marker>
           </>
         )}
+
+        <FocosMapa
+          foco={foco}
+          latAlvo={foco === "localizacao" ? (posicao?.lat ?? null) : lat}
+          lngAlvo={foco === "localizacao" ? (posicao?.lng ?? null) : lng}
+        />
       </MapContainer>
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex justify-center p-3">
@@ -96,6 +141,49 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
         </div>
       </div>
 
+      {erroLocal && (
+        <div className="absolute inset-x-0 top-16 z-[900] flex justify-center px-4">
+          <button
+            type="button"
+            onClick={tentarNovamente}
+            className="flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 text-xs font-semibold text-red-700 shadow-md active:scale-[.98]"
+          >
+            <AlertCircle className="h-4 w-4" />
+            {`${
+              status === "negado"
+                ? "Permissão negada"
+                : erro || "Não foi possível obter a localização"
+            } · Tentar novamente`}
+          </button>
+        </div>
+      )}
+
+      <div className="absolute bottom-28 right-3 z-[900] flex flex-col gap-2">
+        <button
+          type="button"
+          aria-label={ativa ? "Ocultar minha localização" : "Ver minha localização"}
+          onClick={aoTocarLocalizacao}
+          className={`flex h-12 w-12 items-center justify-center rounded-full shadow-lg active:scale-95 ${
+            ativa ? "bg-blue-600 text-white" : "bg-white text-blue-700"
+          }`}
+        >
+          {solicitando ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <LocateFixed className="h-5 w-5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          aria-label="Focar no ponto de encontro"
+          onClick={() => setFoco("encontro")}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-red-600 shadow-lg active:scale-95"
+        >
+          <Flag className="h-5 w-5" />
+        </button>
+      </div>
+
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[900] p-3">
         <div className="mx-auto max-w-2xl rounded-2xl bg-white px-5 py-4 shadow-lg">
           <p className="text-base font-extrabold text-zinc-900">{rotulo}</p>
@@ -103,59 +191,6 @@ export default function VerMapa({ lat, lng, rotulo }: VerAppProps) {
             {lat.toFixed(5)}, {lng.toFixed(5)}
           </p>
         </div>
-      </div>
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-28 z-[900] flex flex-col items-center gap-2 px-4">
-        {mostrarLocal && (status === "negado" || status === "erro") && (
-          <p className="max-w-sm rounded-full bg-white/95 px-4 py-1.5 text-center text-xs font-semibold text-red-700 shadow-md">
-            {status === "negado"
-              ? "Permissão de localização negada."
-              : erro || "Não foi possível obter a localização."}
-          </p>
-        )}
-
-        {mostrarLocal && status === "solicitando" && (
-          <button
-            type="button"
-            disabled
-            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white/95 px-5 py-3 text-sm font-bold text-zinc-500 shadow-md"
-          >
-            <Navigation className="h-5 w-5 animate-pulse" />
-            Buscando localização...
-          </button>
-        )}
-
-        {mostrarLocal && status === "ativo" && (
-          <button
-            type="button"
-            onClick={alternarLocalizacao}
-            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-md active:scale-[.98]"
-          >
-            <Navigation className="h-5 w-5" />
-            Minha localização ativa
-          </button>
-        )}
-
-        {!mostrarLocal && (
-          <button
-            type="button"
-            onClick={alternarLocalizacao}
-            className="pointer-events-auto inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-md active:scale-[.98]"
-          >
-            <Navigation className="h-5 w-5" />
-            Ver minha localização
-          </button>
-        )}
-
-        {mostrarLocal && (status === "negado" || status === "erro") && (
-          <button
-            type="button"
-            onClick={tentarNovamente}
-            className="pointer-events-auto inline-flex min-h-11 items-center justify-center rounded-full bg-white px-5 py-2.5 text-sm font-bold text-blue-700 shadow-md active:scale-[.98]"
-          >
-            Tentar novamente
-          </button>
-        )}
       </div>
     </div>
   );
