@@ -9,6 +9,7 @@ export interface PosicaoMembro {
   lng: number;
   ts: number;
   cor: string;
+  nome: string;
 }
 
 const CORES = [
@@ -21,6 +22,22 @@ const CORES = [
   "#a855f7",
   "#22c55e",
 ];
+
+function obterNomeSalvo(): string {
+  try {
+    return localStorage.getItem("romeirogps:membro-nome") || "";
+  } catch {
+    return "";
+  }
+}
+
+function salvarNomeLocal(nome: string): void {
+  try {
+    localStorage.setItem("romeirogps:membro-nome", nome);
+  } catch {
+    void 0;
+  }
+}
 
 function inicializarMembro(): { id: string; cor: string } {
   try {
@@ -49,7 +66,14 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
   const [membros, setMembros] = useState<Map<string, PosicaoMembro>>(new Map());
   const [compartilhando, setCompartilhando] = useState(false);
   const [membro] = useState<{ id: string; cor: string }>(inicializarMembro);
+  const [nome, setNomeState] = useState<string>(obterNomeSalvo);
   const esFRef = useRef<EventSource | null>(null);
+
+  const definirNome = useCallback((novoNome: string) => {
+    const limpo = novoNome.trim().slice(0, 30);
+    salvarNomeLocal(limpo);
+    setNomeState(limpo);
+  }, []);
 
   useEffect(() => {
     if (!sessaoId) return;
@@ -98,7 +122,7 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
 
   const publicarPosicao = useCallback(
     async (lat: number, lng: number) => {
-      if (!sessaoId) return;
+      if (!sessaoId || !nome) return;
       try {
         await fetch(`/api/sessao/${sessaoId}/posicao`, {
           method: "POST",
@@ -109,13 +133,14 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
             lng,
             ts: Date.now(),
             cor: membro.cor,
+            nome,
           }),
         });
       } catch {
         void 0;
       }
     },
-    [sessaoId, membro]
+    [sessaoId, membro, nome]
   );
 
   useEffect(() => {
@@ -142,8 +167,9 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
     minhaCor: membro.cor,
     posicao,
     compartilhando,
+    nome,
+    definirNome,
     ativarCompartilhamento,
     desativarCompartilhamento,
   };
 }
-

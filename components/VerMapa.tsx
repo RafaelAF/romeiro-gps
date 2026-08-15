@@ -68,9 +68,15 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     membros,
     posicao: posicaoCompartilhada,
     compartilhando,
+    nome,
+    definirNome,
     ativarCompartilhamento,
     desativarCompartilhamento,
   } = useSessaoRealtime(sessao);
+
+  const [exibirModalNome, setExibirModalNome] = useState(false);
+  const [nomeInput, setNomeInput] = useState("");
+  const [erroNome, setErroNome] = useState<string | null>(null);
 
   const posicao = compartilhando ? posicaoCompartilhada : posicaoLocal;
 
@@ -120,10 +126,33 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
     if (compartilhando) {
       desativarCompartilhamento();
     } else {
+      if (!nome) {
+        setNomeInput("");
+        setErroNome(null);
+        setExibirModalNome(true);
+      } else {
+        ativarCompartilhamento();
+        setMostrarLocal(true);
+        pedirFocoNaPosicao();
+      }
+    }
+  };
+
+  const confirmarNome = () => {
+    const limpo = nomeInput.trim();
+    if (limpo.length < 2) {
+      setErroNome("O nome deve ter pelo menos 2 caracteres.");
+      return;
+    }
+    definirNome(limpo);
+    setExibirModalNome(false);
+    
+    // Inicia compartilhamento logo em seguida
+    setTimeout(() => {
       ativarCompartilhamento();
       setMostrarLocal(true);
       pedirFocoNaPosicao();
-    }
+    }, 100);
   };
 
   const focarEncontro = () => voarPara(lat, lng);
@@ -167,7 +196,7 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
             />
             <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao()}>
               <Popup>
-                <strong>Você</strong>
+                <strong>Você {nome ? `(${nome})` : ""}</strong>
                 <br />
                 <span className="text-sm">{`${posicao.lat.toFixed(5)}, ${posicao.lng.toFixed(5)}`}</span>
               </Popup>
@@ -175,14 +204,14 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
           </>
         )}
 
-        {membros.map((m, i) => (
+        {membros.map((m) => (
           <Marker
             key={m.id}
             position={[m.lat, m.lng]}
-            icon={iconeMembro(m.cor, `Pessoa ${i + 1}`)}
+            icon={iconeMembro(m.cor, m.nome)}
           >
             <Popup>
-              <strong>Pessoa {i + 1}</strong>
+              <strong>{m.nome}</strong>
               <br />
               <span className="text-sm">{`${m.lat.toFixed(5)}, ${m.lng.toFixed(5)}`}</span>
             </Popup>
@@ -277,12 +306,52 @@ export default function VerMapa({ lat, lng, rotulo, sessao }: VerAppProps) {
           {sessao && (
             <p className="mt-1.5 text-xs font-medium text-zinc-400">
               {compartilhando
-                ? "Sua localização está sendo compartilhada com o grupo"
+                ? `Compartilhando sua localização como "${nome}"`
                 : "Toque em 📡 para compartilhar sua localização com o grupo"}
             </p>
           )}
         </div>
       </div>
+
+      {exibirModalNome && (
+        <div className="absolute inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-extrabold text-zinc-950">Como quer ser chamado?</h3>
+            <p className="mt-1 text-sm font-medium text-zinc-500">
+              Seu nome aparecerá no mapa em tempo real para as pessoas que têm este link.
+            </p>
+            
+            <input
+              type="text"
+              placeholder="Digite seu nome (Ex: João)"
+              value={nomeInput}
+              onChange={(e) => setNomeInput(e.target.value)}
+              className="mt-4 w-full rounded-2xl border-2 border-zinc-300 bg-white px-4 py-3 text-base font-semibold text-zinc-900 outline-none focus:border-blue-600"
+              maxLength={30}
+              autoFocus
+            />
+
+            {erroNome && <p className="mt-2 text-xs font-semibold text-red-600">{erroNome}</p>}
+
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setExibirModalNome(false)}
+                className="flex-1 rounded-xl border border-zinc-300 bg-white py-3 text-sm font-bold text-zinc-700 active:bg-zinc-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarNome}
+                className="flex-1 rounded-xl bg-blue-700 py-3 text-sm font-bold text-white active:scale-95"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

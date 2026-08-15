@@ -13,7 +13,7 @@ export async function POST(
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const { id, lat, lng, ts, cor } = body as Partial<PosicaoMembro>;
+  const { id, lat, lng, ts, cor, nome } = body as Partial<PosicaoMembro>;
 
   if (
     typeof id !== "string" ||
@@ -21,6 +21,8 @@ export async function POST(
     typeof lng !== "number" ||
     typeof ts !== "number" ||
     typeof cor !== "string" ||
+    typeof nome !== "string" ||
+    nome.trim() === "" ||
     !Number.isFinite(lat) ||
     !Number.isFinite(lng) ||
     lat < -90 ||
@@ -31,6 +33,6 @@ export async function POST(
     return NextResponse.json({ erro: "Payload inválido" }, { status: 400 });
   }
 
-  atualizarPosicao(sessaoId, { id, lat, lng, ts: Date.now(), cor });
+  atualizarPosicao(sessaoId, { id, lat, lng, ts: Date.now(), cor, nome: nome.slice(0, 30) });
   return NextResponse.json({ ok: true });
 }
