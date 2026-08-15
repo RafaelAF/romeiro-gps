@@ -87,7 +87,6 @@ export default function CaravanaApp() {
       try {
         await navigator.share({
           title: "Ponto de Encontro - RomeiroGPS",
-          text: pontoEncontro.descricao,
           url,
         });
         return;

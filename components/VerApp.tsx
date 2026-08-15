@@ -11,9 +11,10 @@ export interface VerAppProps {
   lng: number;
   rotulo: string;
   exp?: string;
+  sessao?: string;
 }
 
-export default function VerApp({ lat, lng, rotulo, exp }: VerAppProps) {
+export default function VerApp({ lat, lng, rotulo, exp, sessao }: VerAppProps) {
   const [expirado] = useState(() => {
     const expiraEm = Number(exp);
     return !Number.isFinite(expiraEm) || Date.now() > expiraEm;
@@ -36,5 +37,6 @@ export default function VerApp({ lat, lng, rotulo, exp }: VerAppProps) {
     );
   }
 
-  return <VerMapa lat={lat} lng={lng} rotulo={rotulo} />;
+  return <VerMapa lat={lat} lng={lng} rotulo={rotulo} sessao={sessao} />;
 }
+

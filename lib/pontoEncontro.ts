@@ -79,12 +79,15 @@ export const VALIDADE_LINK_MS = 48 * 60 * 60 * 1000;
 
 export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string): string {
   const origem = typeof window !== "undefined" ? window.location.origin : "";
+  const sessao = Math.random().toString(36).slice(2, 10);
   const params = new URLSearchParams({
     lider: idLider(telefone),
     lat: ponto.lat.toFixed(6),
     lng: ponto.lng.toFixed(6),
     rotulo: ponto.descricao,
     exp: String(Date.now() + VALIDADE_LINK_MS),
+    sessao,
   });
   return `${origem}/ver?${params.toString()}`;
 }
+
