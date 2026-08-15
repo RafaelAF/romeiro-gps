@@ -1,0 +1,12 @@
+
+> romeirogps@0.1.0 dev
+> next dev
+
+▲ Next.js 16.3.1 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.0.0.2:3000
+✓ Ready in 1045ms
+✓ Running next.config.ts took 104ms
+
+ GET / 200 in 730ms (next.js: 364ms, application-code: 366ms)
+ GET /manifest.webmanifest 200 in 204ms (next.js: 149ms, application-code: 54ms)

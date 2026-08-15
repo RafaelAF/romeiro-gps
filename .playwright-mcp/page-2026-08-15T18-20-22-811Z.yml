@@ -1,0 +1,77 @@
+- generic [active] [ref=e1]:
+  - button "Open Next.js Dev Tools" [ref=e7] [cursor=pointer]
+  - alert [ref=e11]
+  - generic [ref=e12]:
+    - generic [ref=e14]:
+      - generic:
+        - generic:
+          - img:
+            - generic:
+              - generic [ref=e15] [cursor=pointer]
+              - generic [ref=e16] [cursor=pointer]
+              - generic [ref=e17] [cursor=pointer]
+              - generic [ref=e18] [cursor=pointer]
+              - generic [ref=e19] [cursor=pointer]
+              - generic [ref=e20] [cursor=pointer]
+              - generic [ref=e21] [cursor=pointer]
+              - generic [ref=e22] [cursor=pointer]
+              - generic [ref=e23] [cursor=pointer]
+              - generic [ref=e24] [cursor=pointer]
+              - generic [ref=e25] [cursor=pointer]
+              - generic [ref=e26] [cursor=pointer]
+              - generic [ref=e27] [cursor=pointer]
+              - generic [ref=e28] [cursor=pointer]
+              - generic [ref=e29] [cursor=pointer]
+              - generic [ref=e30] [cursor=pointer]
+        - generic:
+          - button [ref=e31] [cursor=pointer]
+          - button "J João" [ref=e35] [cursor=pointer]:
+            - generic [ref=e76]:
+              - generic [ref=e77]: J
+              - generic [ref=e78]: João
+          - button "M Maria" [ref=e79] [cursor=pointer]:
+            - generic [ref=e80]:
+              - generic [ref=e81]: M
+              - generic [ref=e82]: Maria
+    - banner:
+      - generic [ref=e39]:
+        - paragraph [ref=e40]: RomeiroGPS
+        - paragraph [ref=e41]: Aparecida - SP
+    - generic [ref=e42]:
+      - button "Religioso" [ref=e43]
+      - button "Saúde" [ref=e44]
+      - button "Apoio ao Romeiro" [ref=e45]
+      - button "Serviços Públicos" [ref=e46]
+      - button "Transporte" [ref=e47]
+      - button "Lazer" [ref=e48]
+      - button "Turismo" [ref=e49]
+      - button "Praças" [ref=e50]
+    - generic [ref=e52]:
+      - button [ref=e83]:
+        - generic [ref=e54]:
+          - paragraph [ref=e55]: Caravana Santo Antônio
+          - paragraph [ref=e56]: 2 membros
+      - generic [ref=e60]:
+        - generic [ref=e84]:
+          - generic [ref=e85]: Localização ativa
+          - generic [ref=e88]: Restam 3h 57min
+        - generic [ref=e92]:
+          - paragraph [ref=e93]: Membros (2)
+          - list [ref=e99]:
+            - listitem [ref=e100]:
+              - generic [ref=e101]:
+                - generic [ref=e102]: JO
+                - generic [ref=e103]: Joãolider
+              - generic [ref=e104]: 15:19:56
+            - listitem [ref=e105]:
+              - generic [ref=e106]:
+                - generic [ref=e107]: MA
+                - generic [ref=e108]: Maria(você)
+              - generic [ref=e109]: 15:20:22
+        - generic [ref=e110]:
+          - paragraph [ref=e111]: Ponto de Encontro
+          - paragraph [ref=e115]: Ponto de Encontro / Ônibus (-22.84497, -45.23599)
+        - generic [ref=e116]:
+          - button "Compartilhar link da caravana" [ref=e117]
+          - button "Telefones Úteis" [ref=e124]
+          - button "Sair da caravana" [ref=e127]

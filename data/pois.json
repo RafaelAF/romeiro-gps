@@ -1,0 +1,20 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2415, -22.8428] }, "properties": { "id": 1, "nome": "Morro do Cruzeiro", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.234, -22.841] }, "properties": { "id": 2, "nome": "Mirante da Santa", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2385, -22.844] }, "properties": { "id": 3, "nome": "Prefeitura e Câmara Municipal", "categoria": "utilidade_publica" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2398, -22.8455] }, "properties": { "id": 4, "nome": "Praça do Relógio", "categoria": "praca_publica" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.239, -22.8462] }, "properties": { "id": 5, "nome": "Pronto Socorro Municipal", "categoria": "saude" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2368, -22.8471] }, "properties": { "id": 6, "nome": "Igreja São Benedito", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2362, -22.8475] }, "properties": { "id": 7, "nome": "Matriz Basílica (Igreja Velha)", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2355, -22.8488] }, "properties": { "id": 8, "nome": "Terminal Rodoviário", "categoria": "transporte" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2372, -22.845] }, "properties": { "id": 9, "nome": "Memorial Redentorista", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2365, -22.846] }, "properties": { "id": 10, "nome": "Seminário Bom Jesus", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2338, -22.8501] }, "properties": { "id": 11, "nome": "Santuário Nacional de Nossa Senhora Aparecida (Basílica Nova)", "categoria": "turismo_religioso" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2312, -22.8495] }, "properties": { "id": 12, "nome": "Ponto de Encontro dos Romeiros / Shopping", "categoria": "apoio_romeiro" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2305, -22.8485] }, "properties": { "id": 13, "nome": "Aquário de Aparecida", "categoria": "lazer" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.228, -22.8512] }, "properties": { "id": 14, "nome": "Mirante das Pedras", "categoria": "turismo" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [-45.2245, -22.853] }, "properties": { "id": 15, "nome": "Porto Itaguaçu", "categoria": "turismo_religioso" } }
+  ]
+}
