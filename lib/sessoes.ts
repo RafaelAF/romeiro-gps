@@ -4,6 +4,7 @@ export interface PosicaoMembro {
   lng: number;
   ts: number;
   cor: string;
+  nome: string;
 }
 
 type Assinante = (p: PosicaoMembro) => void;
