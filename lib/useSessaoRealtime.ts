@@ -10,6 +10,11 @@ export interface PosicaoMembro {
   ts: number;
   cor: string;
   nome: string;
+  bateria: number | null;
+  precisao: number;
+  status: string;
+  statusTs: number;
+  online: boolean;
 }
 
 const CORES = [
@@ -43,15 +48,15 @@ function inicializarMembro(): { id: string; cor: string } {
   try {
     const idChave = "romeirogps:membro-id";
     const corChave = "romeirogps:membro-cor";
-    let id = sessionStorage.getItem(idChave);
+    let id = localStorage.getItem(idChave);
     if (!id) {
       id = Math.random().toString(36).slice(2, 10);
-      sessionStorage.setItem(idChave, id);
+      localStorage.setItem(idChave, id);
     }
-    let cor = sessionStorage.getItem(corChave);
+    let cor = localStorage.getItem(corChave);
     if (!cor) {
       cor = CORES[Math.floor(Math.random() * CORES.length)];
-      sessionStorage.setItem(corChave, cor);
+      localStorage.setItem(corChave, cor);
     }
     return { id, cor };
   } catch {
@@ -62,11 +67,30 @@ function inicializarMembro(): { id: string; cor: string } {
   }
 }
 
+interface NavigatorWithBattery extends Navigator {
+  getBattery?: () => Promise<{ level: number }>;
+}
+
+async function obterNivelBateria(): Promise<number | null> {
+  try {
+    const nav = navigator as NavigatorWithBattery;
+    if (nav.getBattery) {
+      const bat = await nav.getBattery();
+      return Math.round(bat.level * 100);
+    }
+  } catch {
+    void 0;
+  }
+  return null;
+}
+
 export function useSessaoRealtime(sessaoId: string | undefined) {
   const [membros, setMembros] = useState<Map<string, PosicaoMembro>>(new Map());
   const [compartilhando, setCompartilhando] = useState(false);
   const [membro] = useState<{ id: string; cor: string }>(inicializarMembro);
   const [nome, setNomeState] = useState<string>(obterNomeSalvo);
+  const [statusText, setStatusText] = useState<string>("");
+  const [statusTs, setStatusTs] = useState<number>(0);
   const esFRef = useRef<EventSource | null>(null);
 
   const definirNome = useCallback((novoNome: string) => {
@@ -84,7 +108,8 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
 
     function conectar() {
       if (cancelado) return;
-      es = new EventSource(`/api/sessao/${sessaoId}/stream`);
+      // Passa ?membroId=... para sabermos quem desconectou se fechar a aba
+      es = new EventSource(`/api/sessao/${sessaoId}/stream?membroId=${membro.id}`);
       esFRef.current = es;
 
       es.onmessage = (e) => {
@@ -116,13 +141,20 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
       es?.close();
       esFRef.current = null;
     };
-  }, [sessaoId]);
+  }, [sessaoId, membro.id]);
 
   const { posicao, iniciar, parar, setAoAtualizar } = useCaravanaTracking();
 
   const publicarPosicao = useCallback(
-    async (lat: number, lng: number) => {
+    async (lat: number, lng: number, statusForcado?: string, statusTsForcado?: number) => {
       if (!sessaoId || !nome) return;
+      
+      const bat = await obterNivelBateria();
+      const gpsPrecisao = posicao ? Math.round(posicao.precisao) : 0;
+      
+      const sText = statusForcado !== undefined ? statusForcado : statusText;
+      const sTs = statusTsForcado !== undefined ? statusTsForcado : statusTs;
+
       try {
         await fetch(`/api/sessao/${sessaoId}/posicao`, {
           method: "POST",
@@ -134,13 +166,18 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
             ts: Date.now(),
             cor: membro.cor,
             nome,
+            bateria: bat,
+            precisao: gpsPrecisao,
+            status: sText,
+            statusTs: sTs,
+            online: true,
           }),
         });
       } catch {
         void 0;
       }
     },
-    [sessaoId, membro, nome]
+    [sessaoId, membro, nome, posicao, statusText, statusTs]
   );
 
   useEffect(() => {
@@ -148,6 +185,20 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
       void publicarPosicao(lat, lng);
     });
   }, [setAoAtualizar, publicarPosicao]);
+
+  const enviarStatus = useCallback(
+    async (novoStatus: string) => {
+      const ts = Date.now();
+      setStatusText(novoStatus);
+      setStatusTs(ts);
+      
+      // Se tiver localização ativa, manda imediatamente
+      if (posicao) {
+        await publicarPosicao(posicao.lat, posicao.lng, novoStatus, ts);
+      }
+    },
+    [posicao, publicarPosicao]
+  );
 
   const ativarCompartilhamento = useCallback(() => {
     iniciar();
@@ -168,7 +219,10 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
     posicao,
     compartilhando,
     nome,
+    statusText,
+    statusTs,
     definirNome,
+    enviarStatus,
     ativarCompartilhamento,
     desativarCompartilhamento,
   };

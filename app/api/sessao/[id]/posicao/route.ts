@@ -13,7 +13,7 @@ export async function POST(
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const { id, lat, lng, ts, cor, nome } = body as Partial<PosicaoMembro>;
+  const { id, lat, lng, ts, cor, nome, bateria, precisao, status, statusTs, online } = body as Partial<PosicaoMembro>;
 
   if (
     typeof id !== "string" ||
@@ -33,6 +33,25 @@ export async function POST(
     return NextResponse.json({ erro: "Payload inválido" }, { status: 400 });
   }
 
-  atualizarPosicao(sessaoId, { id, lat, lng, ts: Date.now(), cor, nome: nome.slice(0, 30) });
+  // Valida e sanitiza os novos campos opcionais
+  const baterVal = typeof bateria === "number" && bateria >= 0 && bateria <= 100 ? bateria : null;
+  const precVal = typeof precisao === "number" && precisao >= 0 ? precisao : 0;
+  const statusVal = typeof status === "string" ? status.slice(0, 10) : "";
+  const statusTsVal = typeof statusTs === "number" ? statusTs : 0;
+  const onlineVal = typeof online === "boolean" ? online : true;
+
+  atualizarPosicao(sessaoId, {
+    id,
+    lat,
+    lng,
+    ts: Date.now(),
+    cor,
+    nome: nome.slice(0, 30),
+    bateria: baterVal,
+    precisao: precVal,
+    status: statusVal,
+    statusTs: statusTsVal,
+    online: onlineVal,
+  });
   return NextResponse.json({ ok: true });
 }
