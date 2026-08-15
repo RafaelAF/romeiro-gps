@@ -12,9 +12,21 @@ export interface VerAppProps {
   rotulo: string;
   exp?: string;
   sessao?: string;
+  onibusPlaca?: string;
+  onibusCor?: string;
+  onibusDetalhe?: string;
 }
 
-export default function VerApp({ lat, lng, rotulo, exp, sessao }: VerAppProps) {
+export default function VerApp({
+  lat,
+  lng,
+  rotulo,
+  exp,
+  sessao,
+  onibusPlaca,
+  onibusCor,
+  onibusDetalhe,
+}: VerAppProps) {
   const [expirado] = useState(() => {
     const expiraEm = Number(exp);
     return !Number.isFinite(expiraEm) || Date.now() > expiraEm;
@@ -37,6 +49,16 @@ export default function VerApp({ lat, lng, rotulo, exp, sessao }: VerAppProps) {
     );
   }
 
-  return <VerMapa lat={lat} lng={lng} rotulo={rotulo} sessao={sessao} />;
+  return (
+    <VerMapa
+      lat={lat}
+      lng={lng}
+      rotulo={rotulo}
+      sessao={sessao}
+      onibusPlaca={onibusPlaca}
+      onibusCor={onibusCor}
+      onibusDetalhe={onibusDetalhe}
+    />
+  );
 }
 

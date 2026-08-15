@@ -30,6 +30,9 @@ export interface PontoEncontro {
   lat: number;
   lng: number;
   descricao: string;
+  onibusPlaca?: string;
+  onibusCor?: string;
+  onibusDetalhe?: string;
 }
 
 export interface Caravana {

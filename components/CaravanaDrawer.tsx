@@ -12,6 +12,7 @@ import {
   Phone,
   Share2,
   Trash2,
+  Bus,
 } from "lucide-react";
 import type { PontoEncontro } from "@/lib/types";
 import { CATEGORIA_TELEFONE, TELEFONES_UTEIS } from "@/data/telefones";
@@ -30,6 +31,7 @@ export interface CaravanaDrawerProps {
   aoLimparPontoEncontro: () => void;
   aoTrocarTelefone: () => void;
   aoCompartilhar: () => void;
+  aoSalvarDadosOnibus: (placa: string, cor: string, detalhe: string) => void;
 }
 
 function ChipGps({ status }: { status: StatusGps }) {
@@ -69,8 +71,35 @@ export default function CaravanaDrawer({
   aoLimparPontoEncontro,
   aoTrocarTelefone,
   aoCompartilhar,
+  aoSalvarDadosOnibus,
 }: CaravanaDrawerProps) {
   const [mostrarTelefones, setMostrarTelefones] = useState(false);
+  const [editandoOnibus, setEditandoOnibus] = useState(false);
+  const [placaInput, setPlacaInput] = useState("");
+  const [corInput, setCorInput] = useState("");
+  const [detalheInput, setDetalheInput] = useState("");
+
+  const [prevPontoEncontro, setPrevPontoEncontro] = useState<PontoEncontro | null>(pontoEncontro);
+
+  if (pontoEncontro !== prevPontoEncontro) {
+    setPrevPontoEncontro(pontoEncontro);
+    if (pontoEncontro) {
+      setPlacaInput(pontoEncontro.onibusPlaca || "");
+      setCorInput(pontoEncontro.onibusCor || "");
+      setDetalheInput(pontoEncontro.onibusDetalhe || "");
+      setEditandoOnibus(!pontoEncontro.onibusPlaca && !pontoEncontro.onibusCor && !pontoEncontro.onibusDetalhe);
+    } else {
+      setPlacaInput("");
+      setCorInput("");
+      setDetalheInput("");
+      setEditandoOnibus(false);
+    }
+  }
+
+  const salvarOnibus = () => {
+    aoSalvarDadosOnibus(placaInput, corInput, detalheInput);
+    setEditandoOnibus(false);
+  };
 
   const cabecalho = (
     <button
@@ -99,6 +128,8 @@ export default function CaravanaDrawer({
       )}
     </button>
   );
+
+  const temDadosOnibus = pontoEncontro && (pontoEncontro.onibusPlaca || pontoEncontro.onibusCor || pontoEncontro.onibusDetalhe);
 
   return (
     <div
@@ -212,10 +243,98 @@ export default function CaravanaDrawer({
                           Limpar
                         </button>
                       </div>
+
+                      {/* Seção do Ônibus (Líder) */}
+                      <div className="mt-3 border-t border-zinc-200 pt-3">
+                        {editandoOnibus ? (
+                          <div className="space-y-2.5 rounded-xl border border-zinc-200 bg-white p-3">
+                            <p className="flex items-center gap-1.5 text-xs font-extrabold text-blue-900">
+                              <Bus className="h-4 w-4" />
+                              IDENTIFICAÇÃO DO ÔNIBUS
+                            </p>
+                            
+                            <div>
+                              <label className="block text-[10px] font-bold text-zinc-400 uppercase">Empresa / Cor</label>
+                              <input
+                                type="text"
+                                placeholder="Ex: Gontijo - Amarelo"
+                                value={corInput}
+                                onChange={(e) => setCorInput(e.target.value)}
+                                className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-blue-600"
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-400 uppercase">Placa</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: ABC-1234"
+                                  value={placaInput}
+                                  onChange={(e) => setPlacaInput(e.target.value)}
+                                  className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-blue-600"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-zinc-400 uppercase">Fita / Detalhe visual</label>
+                                <input
+                                  type="text"
+                                  placeholder="Ex: Fita azul no retrovisor"
+                                  value={detalheInput}
+                                  onChange={(e) => setDetalheInput(e.target.value)}
+                                  className="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs font-semibold outline-none focus:border-blue-600"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-1.5">
+                              {temDadosOnibus && (
+                                <button
+                                  type="button"
+                                  onClick={() => setEditandoOnibus(false)}
+                                  className="rounded-lg border border-zinc-200 px-3 py-1 text-xs font-bold text-zinc-600 hover:bg-zinc-50"
+                                >
+                                  Cancelar
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={salvarOnibus}
+                                className="rounded-lg bg-blue-700 px-3 py-1 text-xs font-bold text-white active:scale-95"
+                              >
+                                Salvar ônibus
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+                            <div className="text-xs">
+                              <p className="flex items-center gap-1.5 font-bold text-zinc-800">
+                                <Bus className="h-4 w-4 text-blue-900" />
+                                {pontoEncontro.onibusCor || "Ônibus não identificado"}
+                              </p>
+                              {pontoEncontro.onibusPlaca && (
+                                <p className="mt-0.5 text-zinc-500">Placa: <span className="font-mono font-bold text-zinc-700">{pontoEncontro.onibusPlaca}</span></p>
+                              )}
+                              {pontoEncontro.onibusDetalhe && (
+                                <p className="mt-0.5 text-zinc-500">Detalhe: <span className="font-semibold text-zinc-700">{pontoEncontro.onibusDetalhe}</span></p>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setEditandoOnibus(true)}
+                              className="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs font-bold text-zinc-700 active:bg-zinc-50"
+                            >
+                              Editar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         type="button"
                         onClick={aoCompartilhar}
-                        className="mt-3 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3 text-base font-bold text-white active:scale-[.98]"
+                        className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-700 px-4 py-3 text-base font-bold text-white active:scale-[.98]"
                       >
                         <Share2 className="h-5 w-5" />
                         Compartilhar ponto de encontro

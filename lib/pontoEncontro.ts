@@ -88,6 +88,10 @@ export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string
     exp: String(Date.now() + VALIDADE_LINK_MS),
     sessao,
   });
+  if (ponto.onibusPlaca) params.set("placa", ponto.onibusPlaca);
+  if (ponto.onibusCor) params.set("cor", ponto.onibusCor);
+  if (ponto.onibusDetalhe) params.set("detalhe", ponto.onibusDetalhe);
+  
   return `${origem}/ver?${params.toString()}`;
 }
 
