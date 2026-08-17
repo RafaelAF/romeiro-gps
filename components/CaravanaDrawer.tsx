@@ -48,6 +48,7 @@ export interface CaravanaDrawerProps {
   aoFechar: () => void;
   aoLimparPontoEncontro: () => void;
   aoTrocarTelefone: () => void;
+  aoReiniciarGps: () => void;
   aoCompartilhar: () => void;
   aoVisualizar: () => void;
   aoSalvarDadosOnibus: (placa: string, cor: string, detalhe: string) => void;
@@ -102,6 +103,7 @@ export default function CaravanaDrawer({
   aoFechar,
   aoLimparPontoEncontro,
   aoTrocarTelefone,
+  aoReiniciarGps,
   aoCompartilhar,
   aoVisualizar,
   aoSalvarDadosOnibus,
@@ -249,6 +251,17 @@ export default function CaravanaDrawer({
                 </div>
 
                 {erroGps && <p className="text-sm font-semibold text-red-600">{erroGps}</p>}
+
+                {(gpsStatus === "negado" || gpsStatus === "erro") && (
+                  <button
+                    type="button"
+                    onClick={aoReiniciarGps}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-red-200 bg-white px-4 py-3 text-base font-bold text-red-700 active:scale-[.98]"
+                  >
+                    <Navigation className="h-5 w-5" />
+                    Tentar novamente
+                  </button>
+                )}
 
                 {avisos.length > 0 && (
                   <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-3">

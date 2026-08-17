@@ -540,6 +540,10 @@ export default function CaravanaApp() {
         aoFechar={() => setDrawerAberto(false)}
         aoLimparPontoEncontro={limparPontoEncontro}
         aoTrocarTelefone={trocarTelefone}
+        aoReiniciarGps={() => {
+          parar();
+          iniciar();
+        }}
         aoCompartilhar={compartilhar}
         aoVisualizar={visualizar}
         aoSalvarDadosOnibus={salvarDadosOnibus}
