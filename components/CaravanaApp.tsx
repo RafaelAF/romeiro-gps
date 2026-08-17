@@ -15,7 +15,9 @@ import {
   lerPontoEncontro,
   lerSessaoLider,
   lerTelefone,
+  montarLinkVisualizacao,
   salvarPontoEncontro,
+  salvarSessaoLider,
   salvarTelefone,
 } from "@/lib/pontoEncontro";
 import {
@@ -159,6 +161,18 @@ export default function CaravanaApp() {
       window.prompt("Copie o link:", url);
     }
   }, [pontoEncontro, telefone, mostrarFeedback]);
+
+  const visualizar = useCallback(() => {
+    if (!pontoEncontro || !telefone) return;
+    let sessao = sessaoLider;
+    if (!sessao) {
+      sessao = Math.random().toString(36).slice(2, 10);
+      salvarSessaoLider(sessao);
+      setSessaoLider(sessao);
+    }
+    const url = montarLinkVisualizacao(pontoEncontro, telefone, sessao);
+    window.open(url, "_blank");
+  }, [pontoEncontro, telefone, sessaoLider]);
 
   const aoLongPress = useCallback((lat: number, lng: number) => {
     setCriarPonto({ lat, lng });
@@ -527,6 +541,7 @@ export default function CaravanaApp() {
         aoLimparPontoEncontro={limparPontoEncontro}
         aoTrocarTelefone={trocarTelefone}
         aoCompartilhar={compartilhar}
+        aoVisualizar={visualizar}
         aoSalvarDadosOnibus={salvarDadosOnibus}
         aoRemoverPoi={removerPoi}
         aoIniciarRotaPersonalizada={iniciarCriacaoRota}

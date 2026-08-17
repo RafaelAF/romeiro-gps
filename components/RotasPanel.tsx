@@ -42,6 +42,7 @@ export default function RotasPanel({
 }: RotasPanelProps) {
   const [nomeRota, setNomeRota] = useState("");
   const [nomeTrajeto, setNomeTrajeto] = useState("");
+  const [rotaParaExcluir, setRotaParaExcluir] = useState<Rota | null>(null);
 
   return (
     <div>
@@ -161,7 +162,7 @@ export default function RotasPanel({
                     </div>
                     <button
                       type="button"
-                      onClick={() => aoRemoverRota(rota.id)}
+                      onClick={() => setRotaParaExcluir(rota)}
                       className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-600 active:bg-red-50"
                       aria-label="Excluir rota"
                     >
@@ -183,6 +184,37 @@ export default function RotasPanel({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {rotaParaExcluir && (
+        <div className="fixed inset-0 z-[2500] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-extrabold text-zinc-950">Excluir rota?</h3>
+            <p className="mt-1 text-sm font-medium text-zinc-500">
+              “{rotaParaExcluir.nome}” será removida deste dispositivo. Esta ação não pode ser
+              desfeita.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRotaParaExcluir(null)}
+                className="flex-1 rounded-xl border border-zinc-300 bg-white py-2.5 text-sm font-bold text-zinc-700 active:bg-zinc-50"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  aoRemoverRota(rotaParaExcluir.id);
+                  setRotaParaExcluir(null);
+                }}
+                className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-bold text-white active:scale-[.98]"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       )}

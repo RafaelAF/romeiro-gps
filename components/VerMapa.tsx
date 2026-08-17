@@ -13,6 +13,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
+import Link from "next/link";
 import {
   AlertCircle,
   Battery,
@@ -26,6 +27,7 @@ import {
   Radio,
   RadioTower,
   Route,
+  Settings,
   Shield,
   Users,
   X,
@@ -869,6 +871,16 @@ export default function VerMapa({
             <BookOpen className="h-5 w-5 text-emerald-700" />
             Tutorial
           </button>
+          {sessao && lider && (
+            <Link
+              href="/"
+              onClick={() => setMenuAberto(false)}
+              className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"
+            >
+              <Settings className="h-5 w-5 text-amber-700" />
+              Configurações do líder
+            </Link>
+          )}
           <a
             href="/politica-privacidade"
             className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"

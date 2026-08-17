@@ -94,13 +94,8 @@ export function lerSessaoLider(): string | null {
   }
 }
 
-export function gerarLinkCompartilhamento(
-  ponto: PontoEncontro,
-  telefone: string
-): { url: string; sessao: string } {
+function montarUrlVer(ponto: PontoEncontro, telefone: string, sessao: string): string {
   const origem = typeof window !== "undefined" ? window.location.origin : "";
-  const sessao = Math.random().toString(36).slice(2, 10);
-  salvarSessaoLider(sessao);
   const params = new URLSearchParams({
     lider: idLider(telefone),
     lat: ponto.lat.toFixed(6),
@@ -112,7 +107,24 @@ export function gerarLinkCompartilhamento(
   if (ponto.onibusPlaca) params.set("placa", ponto.onibusPlaca);
   if (ponto.onibusCor) params.set("cor", ponto.onibusCor);
   if (ponto.onibusDetalhe) params.set("detalhe", ponto.onibusDetalhe);
-  
-  return { url: `${origem}/ver?${params.toString()}`, sessao };
+
+  return `${origem}/ver?${params.toString()}`;
+}
+
+export function gerarLinkCompartilhamento(
+  ponto: PontoEncontro,
+  telefone: string
+): { url: string; sessao: string } {
+  const sessao = Math.random().toString(36).slice(2, 10);
+  salvarSessaoLider(sessao);
+  return { url: montarUrlVer(ponto, telefone, sessao), sessao };
+}
+
+export function montarLinkVisualizacao(
+  ponto: PontoEncontro,
+  telefone: string,
+  sessao: string
+): string {
+  return montarUrlVer(ponto, telefone, sessao);
 }
 
