@@ -52,7 +52,7 @@ const SECOES: { titulo: string; texto: string }[] = [
   {
     titulo: "9. Contato",
     texto:
-      "Para dúvidas ou solicitações relacionadas à privacidade, envie um e-mail para: contato@romeirogps.app.br.",
+      "Para dúvidas ou solicitações relacionadas à privacidade, envie um e-mail para: andrade.rafa71@gmail.com",
   },
   {
     titulo: "10. Alterações desta política",
