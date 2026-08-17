@@ -8,7 +8,7 @@ export interface PassoTutorial {
   obterAlvo?: () => HTMLElement | null;
   titulo: string;
   texto: string;
-  posicao?: "auto" | "acima" | "abaixo";
+  posicao?: "auto" | "acima" | "abaixo" | "esquerda" | "direita";
 }
 
 interface Retangulo {
@@ -84,13 +84,28 @@ export default function TutorialInterativo({
 
   const popupW = 270;
   const margem = 12;
-  const abaixo =
-    passo.posicao === "abaixo" || (passo.posicao !== "acima" && ret.top < window.innerHeight / 2);
-  let x = ret.left + ret.width / 2 - popupW / 2;
-  let y = abaixo ? ret.top + ret.height + margem : ret.top - margem;
-  x = Math.max(margem, Math.min(x, window.innerWidth - popupW - margem));
-  if (y < 0) y = 0;
-  if (y > window.innerHeight - 150) y = window.innerHeight - 150;
+  let x: number;
+  let y: number;
+  let alinharCentroY = false;
+
+  if (passo.posicao === "esquerda" || passo.posicao === "direita") {
+    alinharCentroY = true;
+    y = ret.top + ret.height / 2;
+    x =
+      passo.posicao === "esquerda"
+        ? ret.left - popupW - margem
+        : ret.left + ret.width + margem;
+    x = Math.max(margem, Math.min(x, window.innerWidth - popupW - margem));
+    y = Math.min(Math.max(y, 90), window.innerHeight - 90);
+  } else {
+    const abaixo =
+      passo.posicao === "abaixo" || (passo.posicao !== "acima" && ret.top < window.innerHeight / 2);
+    x = ret.left + ret.width / 2 - popupW / 2;
+    y = abaixo ? ret.top + ret.height + margem : ret.top - margem;
+    x = Math.max(margem, Math.min(x, window.innerWidth - popupW - margem));
+    if (y < 0) y = 0;
+    if (y > window.innerHeight - 150) y = window.innerHeight - 150;
+  }
 
   return (
     <div className="fixed inset-0 z-[2500]">
@@ -112,7 +127,12 @@ export default function TutorialInterativo({
 
       <div
         className="fixed z-[2600] rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl"
-        style={{ left: x, top: y, width: popupW }}
+        style={{
+          left: x,
+          top: y,
+          width: popupW,
+          transform: alinharCentroY ? "translateY(-50%)" : undefined,
+        }}
       >
         <p className="text-[10px] font-extrabold uppercase tracking-wider text-blue-700">
           Passo {indice + 1} de {passos.length}
