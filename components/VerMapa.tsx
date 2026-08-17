@@ -1,31 +1,64 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   Tooltip,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import {
   AlertCircle,
+  Battery,
+  BookOpen,
+  Bus,
+  Compass,
   Flag,
   Loader2,
   LocateFixed,
+  Menu,
   Radio,
   RadioTower,
-  Compass,
-  Battery,
+  Route,
+  Shield,
   Users,
-  Bus,
+  X,
 } from "lucide-react";
 import "leaflet/dist/leaflet.css";
+import ModalPoi, { type PontoModalInfo } from "@/components/ModalPoi";
+import RotasPanel from "@/components/RotasPanel";
+import TutorialModal from "@/components/TutorialModal";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import { useSessaoRealtime } from "@/lib/useSessaoRealtime";
+import {
+  iconeEncontro,
+  iconeLider,
+  iconeMembro,
+  iconeMinhaPosicao,
+  iconeParada,
+  iconePoi,
+} from "@/lib/icones";
+import { TIPO_POR_ID } from "@/lib/poisDinamicos";
+import { filtrarPorDistancia } from "@/lib/utils";
+import {
+  assinarRotas,
+  criarRota,
+  criarTrajeto,
+  definirRotaAtiva,
+  lerRotaAtivaId,
+  lerRotas,
+  obterRotaAtiva,
+  pontosRotaParaLatLng,
+  removerRota as removerRotaStore,
+  tracarRotaOsm,
+} from "@/lib/rotas";
+import type { CoordenadaRota, Rota } from "@/lib/types";
 import type { VerAppProps } from "@/components/VerApp";
 
 const STATUS_CONFIGS: Record<string, { label: string; cor: string }> = {
@@ -34,63 +67,6 @@ const STATUS_CONFIGS: Record<string, { label: string; cor: string }> = {
   "📍": { label: "Cheguei no ponto", cor: "#16a34a" },
   "🍕": { label: "Comendo/Comprando", cor: "#d97706" },
 };
-
-function iconeEncontro(): L.DivIcon {
-  const html = `
-    <svg width="36" height="44" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,.4));">
-      <path d="M2 8 L22 8 L12 26 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5"/>
-      <rect x="1.2" y="1" width="21.6" height="4" rx="1" fill="#b91c1c" stroke="#7f1d1d" stroke-width="1"/>
-      <line x1="12" y1="8" x2="12" y2="26" stroke="#7f1d1d" stroke-width="1.5"/>
-    </svg>`;
-  return L.divIcon({ className: "", html, iconSize: [36, 44], iconAnchor: [18, 42] });
-}
-
-function iconeMinhaPosicao(nome: string, rumo: number | null): L.DivIcon {
-  const label = nome ? `Você (${nome})` : "Você";
-  
-  const coneHtml = rumo !== null
-    ? `<svg width="48" height="48" viewBox="0 0 48 48" style="position:absolute;top:-15px;left:-15px;transform:rotate(${rumo}deg);transform-origin:24px 24px;pointer-events:none;z-index:-1;">
-         <path d="M24 24 L10 2 A24 24 0 0 1 38 2 Z" fill="url(#blue-cone)" opacity="0.3" />
-         <path d="M24 16 L19 23 L24 21 L29 23 Z" fill="#1d4ed8" />
-         <defs>
-           <linearGradient id="blue-cone" x1="0%" y1="100%" x2="0%" y2="0%">
-             <stop offset="0%" stop-color="#2563eb" stop-opacity="0" />
-             <stop offset="100%" stop-color="#2563eb" stop-opacity="0.85" />
-           </linearGradient>
-         </defs>
-       </svg>`
-    : "";
-
-  const html = `
-    <div style="display:flex;flex-direction:column;align-items:center;position:relative;width:18px;height:44px;">
-      <div style="position:relative;width:18px;height:18px;">
-        ${coneHtml}
-        <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 1px 6px rgba(0,0,0,.35);position:absolute;top:0;left:0;"></div>
-      </div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;margin-top:2px;">${label}</span>
-    </div>`;
-  return L.divIcon({ className: "", html, iconSize: [18, 44], iconAnchor: [9, 9] });
-}
-
-function iconeMembro(cor: string, label: string, online: boolean, status: string, statusAtivo: boolean): L.DivIcon {
-  const opacidade = online ? "1" : "0.45";
-  const filtro = online ? "" : "filter: grayscale(0.85);";
-  const statusHtml = status && statusAtivo
-    ? `<div style="position:absolute;top:-28px;left:50%;transform:translateX(-50%);background:#ffffff;border:2px solid ${cor};border-radius:999px;padding:2px 6px;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center;animation: bounce 1s infinite alternate;">
-         ${status}
-       </div>`
-    : "";
-
-  const html = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;opacity:${opacidade};${filtro}position:relative;">
-      ${statusHtml}
-      <div style="width:16px;height:16px;border-radius:9999px;background:${cor};border:3px solid #ffffff;box-shadow:0 0 0 5px ${cor}40,0 1px 6px rgba(0,0,0,.35);"></div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:${online ? cor : "#71717a"};box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;">
-        ${label} ${online ? "" : " (offline)"}
-      </span>
-    </div>`;
-  return L.divIcon({ className: "", html, iconSize: [80, 42], iconAnchor: [40, 20] });
-}
 
 function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   const map = useMap();
@@ -103,6 +79,21 @@ function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   return null;
 }
 
+function CapturarCliquesRota({
+  ativo,
+  aoAdicionarPonto,
+}: {
+  ativo: boolean;
+  aoAdicionarPonto: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click: (evento) => {
+      if (ativo) aoAdicionarPonto(evento.latlng.lat, evento.latlng.lng);
+    },
+  });
+  return null;
+}
+
 export default function VerMapa({
   lat,
   lng,
@@ -112,7 +103,8 @@ export default function VerMapa({
   onibusCor,
   onibusDetalhe,
 }: VerAppProps) {
-  const { posicao: posicaoLocal, status, erro, iniciar, parar } = useCaravanaTracking();
+  const { posicao: posicaoLocal, status, erro, iniciar, parar, setAoAtualizar } =
+    useCaravanaTracking();
   const [mostrarLocal, setMostrarLocal] = useState(false);
   const [pedidoLocal, setPedidoLocal] = useState(0);
   const mapaRef = useRef<L.Map | null>(null);
@@ -121,6 +113,8 @@ export default function VerMapa({
 
   const {
     membros,
+    lider,
+    poisLider,
     posicao: posicaoCompartilhada,
     compartilhando,
     nome,
@@ -137,6 +131,25 @@ export default function VerMapa({
   const [erroNome, setErroNome] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => Date.now());
   const [rumo, setRumo] = useState<number | null>(null);
+
+  const [rotas, setRotas] = useState<Rota[]>(() => lerRotas());
+  const [rotaAtivaId, setRotaAtivaId] = useState<string | null>(() => lerRotaAtivaId());
+  const [panelAberto, setPanelAberto] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [tutorialAberto, setTutorialAberto] = useState(false);
+  const [modoCriarRota, setModoCriarRota] = useState(false);
+  const [rotaEmCriacao, setRotaEmCriacao] = useState<{
+    nome: string;
+    pontos: CoordenadaRota[];
+  } | null>(null);
+  const [gravandoTrajeto, setGravandoTrajeto] = useState(false);
+  const [trajetoEmGravacao, setTrajetoEmGravacao] = useState<CoordenadaRota[]>([]);
+  const [navegacao, setNavegacao] = useState<[number, number][] | null>(null);
+  const [carregandoRota, setCarregandoRota] = useState(false);
+  const [linhasOsrm, setLinhasOsrm] = useState<Record<string, [number, number][]>>({});
+  const [modalPoi, setModalPoi] = useState<PontoModalInfo | null>(null);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const temporizadorFeedback = useRef<number | null>(null);
 
   // Atualiza o timer interno a cada segundo para refrescar status e tempo offline
   useEffect(() => {
@@ -337,6 +350,208 @@ export default function VerMapa({
     window.open(url, "_blank");
   };
 
+  const mostrarFeedback = useCallback((texto: string) => {
+    setFeedback(texto);
+    if (temporizadorFeedback.current) window.clearTimeout(temporizadorFeedback.current);
+    temporizadorFeedback.current = window.setTimeout(() => setFeedback(null), 2600);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (temporizadorFeedback.current) window.clearTimeout(temporizadorFeedback.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    return assinarRotas(setRotas);
+  }, []);
+
+  const rotaAtiva = useMemo(() => obterRotaAtiva(rotas, rotaAtivaId), [rotas, rotaAtivaId]);
+
+  useEffect(() => {
+    if (!rotaAtiva || rotaAtiva.tipo !== "personalizada") return;
+    let ativo = true;
+    tracarRotaOsm(rotaAtiva.pontos).then((coords) => {
+      if (ativo && coords) {
+        setLinhasOsrm((prev) => ({ ...prev, [rotaAtiva.id]: coords }));
+      }
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [rotaAtiva]);
+
+  const linhaRotaExibicao = useMemo<[number, number][]>(() => {
+    if (rotaEmCriacao && rotaEmCriacao.pontos.length > 1) {
+      return rotaEmCriacao.pontos.map((p) => [p.lat, p.lng] as [number, number]);
+    }
+    if (!rotaAtiva) return [];
+    return linhasOsrm[rotaAtiva.id] ?? pontosRotaParaLatLng(rotaAtiva);
+  }, [rotaEmCriacao, rotaAtiva, linhasOsrm]);
+
+  const pontosRotaVisiveis = useMemo<CoordenadaRota[]>(
+    () => (rotaEmCriacao ? rotaEmCriacao.pontos : rotaAtiva ? rotaAtiva.pontos : []),
+    [rotaEmCriacao, rotaAtiva]
+  );
+
+  const iniciarCriacaoRota = useCallback((nome: string) => {
+    setRotaEmCriacao({ nome, pontos: [] });
+    setModoCriarRota(true);
+    setPanelAberto(false);
+    setNavegacao(null);
+  }, []);
+
+  const adicionarPontoRota = useCallback(
+    (latP: number, lngP: number) => {
+      if (!rotaEmCriacao) return;
+      setRotaEmCriacao((prev) =>
+        prev
+          ? {
+              ...prev,
+              pontos: [
+                ...prev.pontos,
+                { lat: latP, lng: lngP, nome: `Parada ${prev.pontos.length + 1}` },
+              ],
+            }
+          : prev
+      );
+    },
+    [rotaEmCriacao]
+  );
+
+  const finalizarRota = useCallback(() => {
+    if (!rotaEmCriacao) return;
+    if (rotaEmCriacao.pontos.length < 2) {
+      mostrarFeedback("Adicione pelo menos 2 pontos à rota.");
+      return;
+    }
+    const rota = criarRota({ nome: rotaEmCriacao.nome, pontos: rotaEmCriacao.pontos });
+    setRotaAtivaId(rota.id);
+    setRotas(lerRotas());
+    setRotaEmCriacao(null);
+    setModoCriarRota(false);
+    setPanelAberto(true);
+    mostrarFeedback("Rota criada e ativada!");
+  }, [rotaEmCriacao, mostrarFeedback]);
+
+  const cancelarCriacaoRota = useCallback(() => {
+    setRotaEmCriacao(null);
+    setModoCriarRota(false);
+  }, []);
+
+  const iniciarGravacao = useCallback(() => {
+    const base = posicao ?? posicaoLocal;
+    if (base) {
+      setTrajetoEmGravacao([{ lat: base.lat, lng: base.lng, ts: Date.now() }]);
+    } else {
+      setTrajetoEmGravacao([]);
+      mostrarFeedback("GPS iniciado. Ande um pouco para capturar os pontos.");
+    }
+    setGravandoTrajeto(true);
+    if (!mostrarLocal) iniciar();
+    setPanelAberto(false);
+  }, [posicao, posicaoLocal, mostrarLocal, iniciar, mostrarFeedback]);
+
+  useEffect(() => {
+    return setAoAtualizar(({ lat, lng }) => {
+      if (!gravandoTrajeto) return;
+      setTrajetoEmGravacao((prev) => {
+        const ultimo = prev[prev.length - 1];
+        const podeAdicionar =
+          !ultimo ||
+          (ultimo.ts !== undefined && Date.now() - ultimo.ts >= 15_000) ||
+          filtrarPorDistancia(ultimo, { lat, lng }, 10);
+        if (!podeAdicionar) return prev;
+        return [...prev, { lat, lng, ts: Date.now() }];
+      });
+    });
+  }, [setAoAtualizar, gravandoTrajeto]);
+
+  const finalizarGravacao = useCallback(
+    (nome: string) => {
+      if (trajetoEmGravacao.length < 2) {
+        mostrarFeedback("Trajeto muito curto. Caminhe um pouco mais.");
+        return;
+      }
+      const trajeto = criarTrajeto({
+        nome: nome || "Trajeto gravado",
+        pontos: trajetoEmGravacao,
+      });
+      setRotaAtivaId(trajeto.id);
+      setRotas(lerRotas());
+      setGravandoTrajeto(false);
+      setTrajetoEmGravacao([]);
+      setPanelAberto(true);
+      mostrarFeedback("Trajeto gravado e ativado!");
+    },
+    [trajetoEmGravacao, mostrarFeedback]
+  );
+
+  const cancelarGravacao = useCallback(() => {
+    setGravandoTrajeto(false);
+    setTrajetoEmGravacao([]);
+  }, []);
+
+  const ativarRota = useCallback((id: string | null) => {
+    definirRotaAtiva(id);
+    setRotaAtivaId(id);
+    setNavegacao(null);
+  }, []);
+
+  const removerRota = useCallback((id: string) => {
+    removerRotaStore(id);
+    setRotas(lerRotas());
+    setRotaAtivaId(lerRotaAtivaId());
+  }, []);
+
+  const aoClicarPoiLider = useCallback(
+    (id: string, nomePoi: string, rotulo: string, latP: number, lngP: number) => {
+      setNavegacao(null);
+      setModalPoi({ id, nome: nomePoi, rotulo, lat: latP, lng: lngP });
+    },
+    []
+  );
+
+  const navegarParaPonto = useCallback(
+    async (alvo: { lat: number; lng: number }) => {
+      if (!posicao) {
+        mostrarFeedback("Ative sua localização para traçar a rota.");
+        setModalPoi(null);
+        return;
+      }
+      setCarregandoRota(true);
+      const rota = await tracarRotaOsm([
+        { lat: posicao.lat, lng: posicao.lng },
+        { lat: alvo.lat, lng: alvo.lng },
+      ]);
+      setCarregandoRota(false);
+      setModalPoi(null);
+      setNavegacao(
+        rota ?? [
+          [posicao.lat, posicao.lng],
+          [alvo.lat, alvo.lng],
+        ]
+      );
+    },
+    [posicao, mostrarFeedback]
+  );
+
+  const abrirExterno = useCallback(() => {
+    if (!modalPoi) return;
+    const alvo = modalPoi;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const dest = `${alvo.lat},${alvo.lng}`;
+    const url = posicao
+      ? isIOS
+        ? `maps://maps.apple.com/?saddr=${posicao.lat},${posicao.lng}&daddr=${dest}&dirflg=w`
+        : `https://www.google.com/maps/dir/?api=1&origin=${posicao.lat},${posicao.lng}&destination=${dest}&travelmode=walking`
+      : isIOS
+        ? `maps://maps.apple.com/?q=${dest}`
+        : `https://www.google.com/maps/search/?api=1&query=${dest}`;
+    window.open(url, "_blank");
+    setModalPoi(null);
+  }, [posicao, modalPoi]);
+
   const focarGrupo = () => {
     const mapa = mapaRef.current;
     if (!mapa) return;
@@ -345,6 +560,10 @@ export default function VerMapa({
     
     if (posicao) {
       limites.extend([posicao.lat, posicao.lng]);
+    }
+
+    if (lider) {
+      limites.extend([lider.lat, lider.lng]);
     }
     
     membros.filter(m => m.online).forEach((m) => {
@@ -393,6 +612,7 @@ export default function VerMapa({
           attribution="&copy; OpenStreetMap"
         />
         <CapturaMapa mapaRef={mapaRef} />
+        <CapturarCliquesRota ativo={modoCriarRota} aoAdicionarPonto={adicionarPontoRota} />
         <CircleMarker
           center={[lat, lng]}
           radius={24}
@@ -427,6 +647,68 @@ export default function VerMapa({
           )}
         </Marker>
 
+        {lider && (
+          <Marker position={[lider.lat, lider.lng]} icon={iconeLider(lider.online)}>
+            <Popup>
+              <div className="text-sm min-w-[150px]">
+                <p className="font-extrabold text-amber-700">
+                  Líder da caravana
+                  <span className={`ml-2 inline-block h-2 w-2 rounded-full ${lider.online ? "bg-emerald-500" : "bg-zinc-400"}`} />
+                </p>
+                {!lider.online && (
+                  <p className="text-[11px] font-bold text-red-600 uppercase tracking-wider mt-0.5">
+                    Offline (Visto há {Math.round((agora - lider.ts) / 60_000)} min)
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-zinc-500">{lider.lat.toFixed(5)}, {lider.lng.toFixed(5)}</p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+
+        {poisLider.map((poi) => {
+          const meta =
+            TIPO_POR_ID[poi.tipo as keyof typeof TIPO_POR_ID] ?? TIPO_POR_ID.atracao;
+          return (
+            <Marker
+              key={poi.id}
+              position={[poi.lat, poi.lng]}
+              icon={iconePoi(meta.cor, meta.letra)}
+              eventHandlers={{
+                click: () => aoClicarPoiLider(poi.id, poi.nome, meta.rotulo, poi.lat, poi.lng),
+              }}
+            />
+          );
+        })}
+
+        {linhaRotaExibicao.length > 1 && (
+          <Polyline
+            positions={linhaRotaExibicao}
+            pathOptions={{ color: "#1d4ed8", weight: 5, opacity: 0.85 }}
+          />
+        )}
+
+        {pontosRotaVisiveis.map((p, i) => (
+          <Marker
+            key={`${p.lat}-${p.lng}-${i}`}
+            position={[p.lat, p.lng]}
+            icon={iconeParada("#1d4ed8", i + 1)}
+          >
+            {p.nome && (
+              <Tooltip direction="top" offset={[0, -14]}>
+                {p.nome}
+              </Tooltip>
+            )}
+          </Marker>
+        ))}
+
+        {navegacao && navegacao.length > 1 && (
+          <Polyline
+            positions={navegacao}
+            pathOptions={{ color: "#059669", weight: 6, opacity: 0.9 }}
+          />
+        )}
+
         {mostrarLocal && posicao && (
           <>
             <CircleMarker
@@ -434,7 +716,7 @@ export default function VerMapa({
               radius={40}
               pathOptions={{ color: "#2563eb", weight: 1, fillColor: "#2563eb", fillOpacity: 0.08 }}
             />
-            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao(nome, rumo)}>
+            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao(rumo, nome ? `Você (${nome})` : "Você")}>
               <Popup>
                 <div className="text-sm">
                   <p className="font-extrabold text-blue-900">Você {nome ? `(${nome})` : ""}</p>
@@ -447,7 +729,9 @@ export default function VerMapa({
           </>
         )}
 
-        {membros.map((m) => {
+        {membros
+          .filter((m) => !m.lider)
+          .map((m) => {
           const statusAtivo = agora - m.statusTs <= 15_000;
           return (
             <Marker
@@ -507,6 +791,58 @@ export default function VerMapa({
         </div>
       </div>
 
+      {/* Menu minimalista */}
+      <button
+        type="button"
+        aria-label="Menu"
+        onClick={() => setMenuAberto((v) => !v)}
+        className="absolute right-3 top-3 z-[950] flex h-12 w-12 items-center justify-center rounded-full bg-white text-zinc-800 shadow-lg active:scale-95"
+      >
+        {menuAberto ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </button>
+
+      {menuAberto && (
+        <div className="absolute right-3 top-[4.25rem] z-[950] w-56 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl">
+          <button
+            type="button"
+            onClick={() => {
+              setPanelAberto(true);
+              setMenuAberto(false);
+            }}
+            className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"
+          >
+            <Route className="h-5 w-5 text-blue-700" />
+            Minhas Rotas
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setTutorialAberto(true);
+              setMenuAberto(false);
+            }}
+            className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"
+          >
+            <BookOpen className="h-5 w-5 text-emerald-700" />
+            Tutorial
+          </button>
+          <a
+            href="/politica-privacidade"
+            className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"
+          >
+            <Shield className="h-5 w-5 text-zinc-600" />
+            Política de Privacidade
+          </a>
+        </div>
+      )}
+
+      {feedback && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-[960] flex justify-center px-3">
+          <p className="rounded-full bg-zinc-900/90 px-4 py-2 text-sm font-semibold text-white shadow-lg">
+            {feedback}
+          </p>
+        </div>
+      )}
+
       {/* Indicador de Membros Online */}
       {sessao && totalOnline > 0 && (
         <div className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-[900] flex justify-center px-3">
@@ -533,6 +869,53 @@ export default function VerMapa({
                 ? "Permissão negada"
                 : erro || "Não foi possível obter a localização"
             } · Tentar novamente`}
+          </button>
+        </div>
+      )}
+
+      {/* Aviso de modo: criar rota / gravando trajeto */}
+      {(modoCriarRota || gravandoTrajeto) && (
+        <div className="pointer-events-none absolute inset-x-0 top-[7rem] z-[900] flex justify-center px-3">
+          <p
+            className={`rounded-full px-4 py-1.5 text-xs font-bold text-white shadow-lg ${
+              modoCriarRota ? "bg-blue-700/95" : "bg-emerald-600/95"
+            }`}
+          >
+            {modoCriarRota
+              ? `Toque no mapa para adicionar paradas (${rotaEmCriacao?.pontos.length ?? 0})`
+              : `Gravando trajeto... ${trajetoEmGravacao.length} pontos`}
+          </p>
+        </div>
+      )}
+
+      {/* Controles de criação de rota / gravação */}
+      {modoCriarRota && (
+        <div className="absolute bottom-24 left-3 z-[900] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={cancelarCriacaoRota}
+            className="flex min-h-11 items-center justify-center rounded-full bg-white px-4 text-xs font-bold text-zinc-700 shadow-lg active:scale-95 border border-zinc-200"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={finalizarRota}
+            className="flex min-h-11 items-center justify-center rounded-full bg-blue-700 px-4 text-xs font-bold text-white shadow-lg active:scale-95"
+          >
+            Finalizar ({rotaEmCriacao?.pontos.length ?? 0})
+          </button>
+        </div>
+      )}
+
+      {gravandoTrajeto && (
+        <div className="absolute bottom-24 left-3 z-[900] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setPanelAberto(true)}
+            className="flex min-h-11 items-center justify-center rounded-full bg-emerald-600 px-4 text-xs font-bold text-white shadow-lg active:scale-95"
+          >
+            Parar gravação ({trajetoEmGravacao.length})
           </button>
         </div>
       )}
@@ -688,6 +1071,45 @@ export default function VerMapa({
           </div>
         </div>
       </div>
+
+      {/* Painel de Rotas e Trajetos (particulares) */}
+      {panelAberto && (
+        <div className="absolute inset-0 z-[1200]">
+          <div
+            className="absolute inset-0 bg-black/30"
+            onClick={() => setPanelAberto(false)}
+          />
+          <div className="absolute inset-x-0 bottom-0 mx-auto max-h-[70dvh] max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl">
+            <RotasPanel
+              rotas={rotas}
+              rotaAtivaId={rotaAtivaId}
+              gravandoTrajeto={gravandoTrajeto}
+              trajetoEmGravacao={trajetoEmGravacao}
+              aoVoltar={() => setPanelAberto(false)}
+              aoIniciarRotaPersonalizada={iniciarCriacaoRota}
+              aoIniciarGravacao={iniciarGravacao}
+              aoFinalizarGravacao={finalizarGravacao}
+              aoCancelarGravacao={cancelarGravacao}
+              aoAtivarRota={ativarRota}
+              aoRemoverRota={removerRota}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Ponto de Interesse do Líder */}
+      {modalPoi && (
+        <ModalPoi
+          ponto={modalPoi}
+          carregandoRota={carregandoRota}
+          aoNavegar={() => navegarParaPonto(modalPoi)}
+          aoAbrirExterno={abrirExterno}
+          aoFechar={() => setModalPoi(null)}
+        />
+      )}
+
+      {/* Tutorial */}
+      {tutorialAberto && <TutorialModal aoFechar={() => setTutorialAberto(false)} />}
 
       {/* Modal para Identificação do Seguidor */}
       {exibirModalNome && (

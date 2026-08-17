@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import {
   CircleMarker,
   MapContainer,
   Marker,
+  Polyline,
   Popup,
   TileLayer,
   Tooltip,
@@ -12,81 +13,91 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import type { CategoriaPoi, PontoEncontro } from "@/lib/types";
-import { CATEGORIA_POR_ID, POIS } from "@/lib/pois";
+import type { CoordenadaRota, PoiDinamico, PontoEncontro } from "@/lib/types";
+import { TIPO_POR_ID } from "@/lib/poisDinamicos";
+import { iconeEncontro, iconeMinhaPosicao, iconeMembro, iconePoi } from "@/lib/icones";
 import { CENTRO_APARECIDA } from "@/lib/utils";
 
-function iconeMinhaPosicao(rumo: number | null): L.DivIcon {
-  const coneHtml = rumo !== null
-    ? `<svg width="48" height="48" viewBox="0 0 48 48" style="position:absolute;top:-15px;left:-15px;transform:rotate(${rumo}deg);transform-origin:24px 24px;pointer-events:none;z-index:-1;">
-         <path d="M24 24 L10 2 A24 24 0 0 1 38 2 Z" fill="url(#blue-cone)" opacity="0.3" />
-         <path d="M24 16 L19 23 L24 21 L29 23 Z" fill="#1d4ed8" />
-         <defs>
-           <linearGradient id="blue-cone" x1="0%" y1="100%" x2="0%" y2="0%">
-             <stop offset="0%" stop-color="#2563eb" stop-opacity="0" />
-             <stop offset="100%" stop-color="#2563eb" stop-opacity="0.85" />
-           </linearGradient>
-         </defs>
-       </svg>`
-    : "";
-
+function iconeParada(indice: number): L.DivIcon {
   const html = `
-    <div style="display:flex;flex-direction:column;align-items:center;position:relative;width:18px;height:44px;">
-      <div style="position:relative;width:18px;height:18px;">
-        ${coneHtml}
-        <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 1px 6px rgba(0,0,0,.35);position:absolute;top:0;left:0;"></div>
-      </div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;margin-top:2px;">Você</span>
-    </div>`;
-  return L.divIcon({ className: "", html, iconSize: [18, 44], iconAnchor: [9, 9] });
+    <div style="width:26px;height:26px;border-radius:9999px;background:#1d4ed8;border:3px solid #ffffff;box-shadow:0 1px 5px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:800;">${indice}</div>`;
+  return L.divIcon({ className: "", html, iconSize: [26, 26], iconAnchor: [13, 13] });
 }
 
-function iconeEncontro(): L.DivIcon {
-  const html = `
-    <svg width="36" height="44" viewBox="0 0 24 32" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 1px 4px rgba(0,0,0,.4));">
-      <path d="M2 8 L22 8 L12 26 Z" fill="#dc2626" stroke="#7f1d1d" stroke-width="1.5"/>
-      <rect x="1.2" y="1" width="21.6" height="4" rx="1" fill="#b91c1c" stroke="#7f1d1d" stroke-width="1"/>
-      <line x1="12" y1="8" x2="12" y2="26" stroke="#7f1d1d" stroke-width="1.5"/>
-    </svg>`;
-  return L.divIcon({ className: "", html, iconSize: [36, 44], iconAnchor: [18, 42] });
-}
-
-interface CapturarEncontroProps {
-  aoDefinir: (lat: number, lng: number) => void;
-}
-
-function CapturarEncontro({ aoDefinir }: CapturarEncontroProps) {
-  useMapEvents({
-    contextmenu: (evento) => {
-      aoDefinir(evento.latlng.lat, evento.latlng.lng);
-    },
-  });
-  return null;
-}
-
-function CapturarCliquesBussola({ aoClicar }: { aoClicar: () => void }) {
-  useMapEvents({
-    click: () => {
-      aoClicar();
-    },
-  });
-  return null;
+export interface MembroMapaLider {
+  id: string;
+  nome: string;
+  cor: string;
+  lat: number;
+  lng: number;
+  online: boolean;
+  foraDoTrajeto: boolean;
+  status: string;
+  statusTs: number;
 }
 
 export interface MapViewProps {
   minhaPosicao: { lat: number; lng: number } | null;
   pontoEncontro: PontoEncontro | null;
-  categoriasAtivas: CategoriaPoi[];
-  aoDefinirEncontro: (lat: number, lng: number) => void;
+  pois: PoiDinamico[];
+  linhaRota: [number, number][];
+  pontosRota: CoordenadaRota[];
+  navegacao: [number, number][] | null;
+  membros: MembroMapaLider[];
+  modoCriarRota: boolean;
+  aoLongPress: (lat: number, lng: number) => void;
+  aoAdicionarPontoRota: (lat: number, lng: number) => void;
+  aoClicarPoi: (id: string, nome: string, rotulo: string, lat: number, lng: number) => void;
+  aoClicarEncontro: () => void;
+}
+
+interface CapturarEventosProps {
+  modoCriarRota: boolean;
+  aoLongPress: (lat: number, lng: number) => void;
+  aoAdicionarPontoRota: (lat: number, lng: number) => void;
+  aoClicarMapa: () => void;
+}
+
+function CapturarEventos({
+  modoCriarRota,
+  aoLongPress,
+  aoAdicionarPontoRota,
+  aoClicarMapa,
+}: CapturarEventosProps) {
+  useMapEvents({
+    contextmenu: (evento) => {
+      if (modoCriarRota) aoAdicionarPontoRota(evento.latlng.lat, evento.latlng.lng);
+      else aoLongPress(evento.latlng.lat, evento.latlng.lng);
+    },
+    click: (evento) => {
+      if (modoCriarRota) aoAdicionarPontoRota(evento.latlng.lat, evento.latlng.lng);
+      else aoClicarMapa();
+    },
+  });
+  return null;
 }
 
 export default function MapView({
   minhaPosicao,
   pontoEncontro,
-  categoriasAtivas,
-  aoDefinirEncontro,
+  pois,
+  linhaRota,
+  pontosRota,
+  navegacao,
+  membros,
+  modoCriarRota,
+  aoLongPress,
+  aoAdicionarPontoRota,
+  aoClicarPoi,
+  aoClicarEncontro,
 }: MapViewProps) {
   const [rumo, setRumo] = useState<number | null>(null);
+  const [agora, setAgora] = useState(() => Date.now());
+
+  useEffect(() => {
+    const int = setInterval(() => setAgora(Date.now()), 5000);
+    return () => clearInterval(int);
+  }, []);
 
   useEffect(() => {
     if (!minhaPosicao) {
@@ -141,7 +152,6 @@ export default function MapView({
     };
   }, [minhaPosicao]);
 
-  // Se o usuário clicar em qualquer lugar do mapa, tentamos solicitar a permissão da bússola no iOS
   const tentarPermissaoBussolaIOS = () => {
     const DeviceOrientationWithPerms = typeof window !== "undefined"
       ? (window as unknown as {
@@ -165,11 +175,6 @@ export default function MapView({
     }
   };
 
-  const poisVisiveis = useMemo(
-    () => POIS.filter((poi) => categoriasAtivas.includes(poi.categoria)),
-    [categoriasAtivas]
-  );
-
   return (
     <MapContainer
       center={[CENTRO_APARECIDA.lat, CENTRO_APARECIDA.lng]}
@@ -182,24 +187,24 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution="&copy; OpenStreetMap"
       />
-      <CapturarEncontro aoDefinir={aoDefinirEncontro} />
-      <CapturarCliquesBussola aoClicar={tentarPermissaoBussolaIOS} />
+      <CapturarEventos
+        modoCriarRota={modoCriarRota}
+        aoLongPress={aoLongPress}
+        aoAdicionarPontoRota={aoAdicionarPontoRota}
+        aoClicarMapa={tentarPermissaoBussolaIOS}
+      />
 
-      {poisVisiveis.map((poi) => {
-        const categoria = CATEGORIA_POR_ID[poi.categoria];
+      {pois.map((poi) => {
+        const meta = TIPO_POR_ID[poi.tipo];
         return (
-          <CircleMarker
+          <Marker
             key={poi.id}
-            center={[poi.lat, poi.lng]}
-            radius={8}
-            pathOptions={{ color: "#ffffff", weight: 2, fillColor: categoria.cor, fillOpacity: 0.9 }}
-          >
-            <Popup>
-              <strong>{poi.nome}</strong>
-              <br />
-              <span className="text-sm">{categoria.rotulo}</span>
-            </Popup>
-          </CircleMarker>
+            position={[poi.lat, poi.lng]}
+            icon={iconePoi(meta.cor, meta.letra)}
+            eventHandlers={{
+              click: () => aoClicarPoi(poi.id, poi.nome, meta.rotulo, poi.lat, poi.lng),
+            }}
+          />
         );
       })}
 
@@ -210,13 +215,71 @@ export default function MapView({
             radius={24}
             pathOptions={{ color: "#dc2626", weight: 2, fillColor: "#dc2626", fillOpacity: 0.15 }}
           />
-          <Marker position={[pontoEncontro.lat, pontoEncontro.lng]} icon={iconeEncontro()}>
+          <Marker
+            position={[pontoEncontro.lat, pontoEncontro.lng]}
+            icon={iconeEncontro()}
+            eventHandlers={{ click: () => aoClicarEncontro() }}
+          >
             <Tooltip direction="top" offset={[0, -10]}>
               {pontoEncontro.descricao}
             </Tooltip>
           </Marker>
         </>
       )}
+
+      {linhaRota.length > 1 && (
+        <Polyline
+          positions={linhaRota}
+          pathOptions={{ color: "#1d4ed8", weight: 5, opacity: 0.85 }}
+        />
+      )}
+
+      {pontosRota.map((p, i) => (
+        <Marker key={`${p.lat}-${p.lng}-${i}`} position={[p.lat, p.lng]} icon={iconeParada(i + 1)}>
+          {p.nome && (
+            <Tooltip direction="top" offset={[0, -14]}>
+              {p.nome}
+            </Tooltip>
+          )}
+        </Marker>
+      ))}
+
+      {navegacao && navegacao.length > 1 && (
+        <Polyline
+          positions={navegacao}
+          pathOptions={{ color: "#059669", weight: 6, opacity: 0.9 }}
+        />
+      )}
+
+      {membros.map((m) => (
+        <Fragment key={m.id}>
+          {m.foraDoTrajeto && (
+            <CircleMarker
+              center={[m.lat, m.lng]}
+              radius={22}
+              pathOptions={{ color: "#dc2626", weight: 2, fillColor: "#dc2626", fillOpacity: 0.18 }}
+            />
+          )}
+          <Marker
+            position={[m.lat, m.lng]}
+            icon={iconeMembro(m.cor, m.nome, m.online, m.status, agora - m.statusTs <= 15_000)}
+          >
+            <Popup>
+              <div className="text-sm">
+                <p className="font-extrabold" style={{ color: m.cor }}>
+                  {m.nome || "Sem nome"}
+                </p>
+                {m.foraDoTrajeto && (
+                  <p className="mt-1 rounded bg-red-50 px-2 py-1 text-xs font-bold text-red-700">
+                    Fora do trajeto!
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-zinc-500">{m.lat.toFixed(5)}, {m.lng.toFixed(5)}</p>
+              </div>
+            </Popup>
+          </Marker>
+        </Fragment>
+      ))}
 
       {minhaPosicao && (
         <>

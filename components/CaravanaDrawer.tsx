@@ -1,22 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
+  Bus,
   ChevronDown,
   ChevronUp,
   Crown,
+  HelpCircle,
   Info,
   MapPin,
+  MapPinned,
   Navigation,
   Phone,
+  Route,
   Share2,
+  Shield,
   Trash2,
-  Bus,
 } from "lucide-react";
-import type { PontoEncontro } from "@/lib/types";
+import type { CoordenadaRota, PoiDinamico, PontoEncontro, Rota } from "@/lib/types";
 import { CATEGORIA_TELEFONE, TELEFONES_UTEIS } from "@/data/telefones";
+import { TIPO_POR_ID } from "@/lib/poisDinamicos";
 import type { PosicaoAtual, StatusGps } from "@/lib/useCaravanaTracking";
+import RotasPanel from "@/components/RotasPanel";
+
+export interface AvisoMembro {
+  id: string;
+  nome: string;
+}
 
 export interface CaravanaDrawerProps {
   aberto: boolean;
@@ -25,13 +37,26 @@ export interface CaravanaDrawerProps {
   gpsStatus: StatusGps;
   erroGps: string | null;
   minhaPosicao: PosicaoAtual | null;
-  feedback: string | null;
+  pois: PoiDinamico[];
+  rotas: Rota[];
+  rotaAtivaId: string | null;
+  gravandoTrajeto: boolean;
+  trajetoEmGravacao: CoordenadaRota[];
+  avisos: AvisoMembro[];
   aoAbrir: () => void;
   aoFechar: () => void;
   aoLimparPontoEncontro: () => void;
   aoTrocarTelefone: () => void;
   aoCompartilhar: () => void;
   aoSalvarDadosOnibus: (placa: string, cor: string, detalhe: string) => void;
+  aoRemoverPoi: (id: string) => void;
+  aoIniciarRotaPersonalizada: (nome: string) => void;
+  aoIniciarGravacao: () => void;
+  aoFinalizarGravacao: (nome: string) => void;
+  aoCancelarGravacao: () => void;
+  aoAtivarRota: (id: string | null) => void;
+  aoRemoverRota: (id: string) => void;
+  aoAbrirTutorial: () => void;
 }
 
 function ChipGps({ status }: { status: StatusGps }) {
@@ -65,15 +90,29 @@ export default function CaravanaDrawer({
   gpsStatus,
   erroGps,
   minhaPosicao,
-  feedback,
+  pois,
+  rotas,
+  rotaAtivaId,
+  gravandoTrajeto,
+  trajetoEmGravacao,
+  avisos,
   aoAbrir,
   aoFechar,
   aoLimparPontoEncontro,
   aoTrocarTelefone,
   aoCompartilhar,
   aoSalvarDadosOnibus,
+  aoRemoverPoi,
+  aoIniciarRotaPersonalizada,
+  aoIniciarGravacao,
+  aoFinalizarGravacao,
+  aoCancelarGravacao,
+  aoAtivarRota,
+  aoRemoverRota,
+  aoAbrirTutorial,
 }: CaravanaDrawerProps) {
   const [mostrarTelefones, setMostrarTelefones] = useState(false);
+  const [mostrarRotas, setMostrarRotas] = useState(false);
   const [editandoOnibus, setEditandoOnibus] = useState(false);
   const [placaInput, setPlacaInput] = useState("");
   const [corInput, setCorInput] = useState("");
@@ -87,7 +126,9 @@ export default function CaravanaDrawer({
       setPlacaInput(pontoEncontro.onibusPlaca || "");
       setCorInput(pontoEncontro.onibusCor || "");
       setDetalheInput(pontoEncontro.onibusDetalhe || "");
-      setEditandoOnibus(!pontoEncontro.onibusPlaca && !pontoEncontro.onibusCor && !pontoEncontro.onibusDetalhe);
+      setEditandoOnibus(
+        !pontoEncontro.onibusPlaca && !pontoEncontro.onibusCor && !pontoEncontro.onibusDetalhe
+      );
     } else {
       setPlacaInput("");
       setCorInput("");
@@ -129,7 +170,9 @@ export default function CaravanaDrawer({
     </button>
   );
 
-  const temDadosOnibus = pontoEncontro && (pontoEncontro.onibusPlaca || pontoEncontro.onibusCor || pontoEncontro.onibusDetalhe);
+  const temDadosOnibus =
+    pontoEncontro &&
+    (pontoEncontro.onibusPlaca || pontoEncontro.onibusCor || pontoEncontro.onibusDetalhe);
 
   return (
     <div
@@ -176,6 +219,26 @@ export default function CaravanaDrawer({
                   </div>
                 ))}
               </div>
+            ) : mostrarRotas ? (
+              <RotasPanel
+                rotas={rotas}
+                rotaAtivaId={rotaAtivaId}
+                gravandoTrajeto={gravandoTrajeto}
+                trajetoEmGravacao={trajetoEmGravacao}
+                aoVoltar={() => setMostrarRotas(false)}
+                aoIniciarRotaPersonalizada={(nome) => {
+                  aoIniciarRotaPersonalizada(nome);
+                  setMostrarRotas(false);
+                }}
+                aoIniciarGravacao={aoIniciarGravacao}
+                aoFinalizarGravacao={(nome) => {
+                  aoFinalizarGravacao(nome);
+                  setMostrarRotas(false);
+                }}
+                aoCancelarGravacao={aoCancelarGravacao}
+                aoAtivarRota={aoAtivarRota}
+                aoRemoverRota={aoRemoverRota}
+              />
             ) : (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center gap-2">
@@ -183,6 +246,20 @@ export default function CaravanaDrawer({
                 </div>
 
                 {erroGps && <p className="text-sm font-semibold text-red-600">{erroGps}</p>}
+
+                {avisos.length > 0 && (
+                  <div className="rounded-2xl border-2 border-red-300 bg-red-50 p-3">
+                    <p className="mb-1 flex items-center gap-1.5 text-sm font-extrabold text-red-700">
+                      <MapPinned className="h-4 w-4" />
+                      Fora do trajeto
+                    </p>
+                    {avisos.map((a) => (
+                      <p key={a.id} className="text-xs font-bold text-red-600">
+                        • {a.nome || "Um romeiro"} saiu do trajeto há mais de 1 minuto
+                      </p>
+                    ))}
+                  </div>
+                )}
 
                 <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
                   <p className="mb-1 flex items-center gap-2 text-sm font-bold text-zinc-700">
@@ -197,9 +274,7 @@ export default function CaravanaDrawer({
                       </span>
                     </p>
                   ) : (
-                    <p className="text-sm font-medium text-zinc-500">
-                      Aguardando sinal de GPS...
-                    </p>
+                    <p className="text-sm font-medium text-zinc-500">Aguardando sinal de GPS...</p>
                   )}
                 </div>
 
@@ -210,7 +285,7 @@ export default function CaravanaDrawer({
                       Você é o líder
                     </p>
                     <p className="text-xs font-medium text-zinc-500">
-                      Celular {mascararTelefone(telefone)} · segure o mapa para marcar o ponto.
+                      Celular {mascararTelefone(telefone)} · segure o mapa para criar pontos.
                     </p>
                   </div>
                   <button
@@ -231,8 +306,8 @@ export default function CaravanaDrawer({
                     <div>
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium text-zinc-800">
-                          {pontoEncontro.descricao} (
-                          {pontoEncontro.lat.toFixed(5)}, {pontoEncontro.lng.toFixed(5)})
+                          {pontoEncontro.descricao} ({pontoEncontro.lat.toFixed(5)},{" "}
+                          {pontoEncontro.lng.toFixed(5)})
                         </p>
                         <button
                           type="button"
@@ -244,7 +319,6 @@ export default function CaravanaDrawer({
                         </button>
                       </div>
 
-                      {/* Seção do Ônibus (Líder) */}
                       <div className="mt-3 border-t border-zinc-200 pt-3">
                         {editandoOnibus ? (
                           <div className="space-y-2.5 rounded-xl border border-zinc-200 bg-white p-3">
@@ -252,9 +326,11 @@ export default function CaravanaDrawer({
                               <Bus className="h-4 w-4" />
                               IDENTIFICAÇÃO DO ÔNIBUS
                             </p>
-                            
+
                             <div>
-                              <label className="block text-[10px] font-bold text-zinc-400 uppercase">Empresa / Cor</label>
+                              <label className="block text-[10px] font-bold uppercase text-zinc-400">
+                                Empresa / Cor
+                              </label>
                               <input
                                 type="text"
                                 placeholder="Ex: Gontijo - Amarelo"
@@ -266,7 +342,9 @@ export default function CaravanaDrawer({
 
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="block text-[10px] font-bold text-zinc-400 uppercase">Placa</label>
+                                <label className="block text-[10px] font-bold uppercase text-zinc-400">
+                                  Placa
+                                </label>
                                 <input
                                   type="text"
                                   placeholder="Ex: ABC-1234"
@@ -276,7 +354,9 @@ export default function CaravanaDrawer({
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-zinc-400 uppercase">Fita / Detalhe visual</label>
+                                <label className="block text-[10px] font-bold uppercase text-zinc-400">
+                                  Fita / Detalhe visual
+                                </label>
                                 <input
                                   type="text"
                                   placeholder="Ex: Fita azul no retrovisor"
@@ -314,10 +394,20 @@ export default function CaravanaDrawer({
                                 {pontoEncontro.onibusCor || "Ônibus não identificado"}
                               </p>
                               {pontoEncontro.onibusPlaca && (
-                                <p className="mt-0.5 text-zinc-500">Placa: <span className="font-mono font-bold text-zinc-700">{pontoEncontro.onibusPlaca}</span></p>
+                                <p className="mt-0.5 text-zinc-500">
+                                  Placa:{" "}
+                                  <span className="font-mono font-bold text-zinc-700">
+                                    {pontoEncontro.onibusPlaca}
+                                  </span>
+                                </p>
                               )}
                               {pontoEncontro.onibusDetalhe && (
-                                <p className="mt-0.5 text-zinc-500">Detalhe: <span className="font-semibold text-zinc-700">{pontoEncontro.onibusDetalhe}</span></p>
+                                <p className="mt-0.5 text-zinc-500">
+                                  Detalhe:{" "}
+                                  <span className="font-semibold text-zinc-700">
+                                    {pontoEncontro.onibusDetalhe}
+                                  </span>
+                                </p>
                               )}
                             </div>
                             <button
@@ -340,13 +430,8 @@ export default function CaravanaDrawer({
                         Compartilhar ponto de encontro
                       </button>
                       <p className="mt-1.5 text-center text-xs font-medium text-zinc-400">
-                        O link é válido por 48 horas.
+                        O link é válido por 24 horas.
                       </p>
-                      {feedback && (
-                        <p className="mt-2 text-center text-sm font-bold text-emerald-700">
-                          {feedback}
-                        </p>
-                      )}
                     </div>
                   ) : (
                     <p className="text-sm font-medium text-amber-700">
@@ -354,6 +439,62 @@ export default function CaravanaDrawer({
                     </p>
                   )}
                 </div>
+
+                <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                  <p className="mb-1 flex items-center gap-2 text-sm font-bold text-zinc-700">
+                    <MapPinned className="h-4 w-4" />
+                    Meus pontos
+                  </p>
+                  {pois.length === 0 ? (
+                    <p className="text-sm font-medium text-zinc-500">
+                      Nenhum ponto criado. Segure o mapa para criar hotéis, restaurantes e atrações.
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {pois.map((poi) => {
+                        const meta = TIPO_POR_ID[poi.tipo];
+                        return (
+                          <div
+                            key={poi.id}
+                            className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2"
+                          >
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                                style={{ backgroundColor: meta.cor }}
+                              />
+                              <span className="truncate text-sm font-semibold text-zinc-800">
+                                {poi.nome}
+                              </span>
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <span className="text-[11px] font-bold text-zinc-400">
+                                {meta.rotulo}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => aoRemoverPoi(poi.id)}
+                                className="flex h-7 w-7 items-center justify-center rounded-lg text-red-600 active:bg-red-50"
+                                aria-label={`Excluir ${poi.nome}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setMostrarRotas(true)}
+                  className="flex min-h-14 w-full items-center justify-center gap-3 rounded-2xl border-2 border-zinc-300 bg-white px-6 py-4 text-lg font-semibold text-zinc-800 active:scale-[.98]"
+                >
+                  <Route className="h-6 w-6" />
+                  Rotas e Trajetos
+                </button>
 
                 <button
                   type="button"
@@ -364,11 +505,28 @@ export default function CaravanaDrawer({
                   Telefones Úteis
                 </button>
 
+                <button
+                  type="button"
+                  onClick={aoAbrirTutorial}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800 active:scale-[.98]"
+                >
+                  <HelpCircle className="h-5 w-5" />
+                  Tutorial de funcionalidades
+                </button>
+
+                <Link
+                  href="/politica-privacidade"
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold text-zinc-700 active:scale-[.98]"
+                >
+                  <Shield className="h-5 w-5" />
+                  Política de Privacidade (LGPD)
+                </Link>
+
                 <p className="flex items-start gap-2 text-xs leading-5 text-zinc-500">
                   <Info className="mt-0.5 h-4 w-4 shrink-0" />
-                  Você é o líder e o app funciona como mapa pessoal: localização, pontos turísticos e
-                  o ponto de encontro, compartilhável por link. O número de celular é usado apenas
-                  para identificação e geração do link; os dados não são usados para outros fins.
+                  Você é o líder e o app funciona como mapa pessoal: localização, pontos e o ponto de
+                  encontro, compartilhável por link. O número de celular é usado apenas para
+                  identificação e geração do link; os dados não são usados para outros fins.
                 </p>
               </div>
             )}

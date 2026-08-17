@@ -29,10 +29,13 @@ export function useCaravanaTracking(opcoes: OpcoesTracking = {}) {
 
   const watchIdRef = useRef<number | null>(null);
   const ultimoEnvioRef = useRef<PosicaoAtual | null>(null);
-  const aoAtualizarRef = useRef<AoAtualizarPosicao | null>(null);
+  const aoAtualizarRef = useRef<Set<AoAtualizarPosicao>>(new Set());
 
   const setAoAtualizar = useCallback((callback: AoAtualizarPosicao) => {
-    aoAtualizarRef.current = callback;
+    aoAtualizarRef.current.add(callback);
+    return () => {
+      aoAtualizarRef.current.delete(callback);
+    };
   }, []);
 
   const parar = useCallback(() => {
@@ -73,11 +76,12 @@ export function useCaravanaTracking(opcoes: OpcoesTracking = {}) {
           filtrarPorDistancia(ultimo, atual, distanciaMinimaM);
         if (deveEnviar) {
           ultimoEnvioRef.current = atual;
-          aoAtualizarRef.current?.({
+          const snapshot = {
             lat: atual.lat,
             lng: atual.lng,
             ts: atual.ts,
-          });
+          };
+          aoAtualizarRef.current.forEach((fn) => fn(snapshot));
         }
       },
       (erroNavegador) => {

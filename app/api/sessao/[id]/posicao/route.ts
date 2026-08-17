@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { atualizarPosicao, type PosicaoMembro } from "@/lib/sessoes";
+import { atualizarPosicao, type PoiSessao, type PosicaoMembro } from "@/lib/sessoes";
 
 export async function POST(
   request: Request,
@@ -13,7 +13,7 @@ export async function POST(
     return NextResponse.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const { id, lat, lng, ts, cor, nome, bateria, precisao, status, statusTs, online } = body as Partial<PosicaoMembro>;
+  const { id, lat, lng, ts, cor, nome, bateria, precisao, status, statusTs, online, lider, pois } = body as Partial<PosicaoMembro>;
 
   if (
     typeof id !== "string" ||
@@ -39,6 +39,29 @@ export async function POST(
   const statusVal = typeof status === "string" ? status.slice(0, 10) : "";
   const statusTsVal = typeof statusTs === "number" ? statusTs : 0;
   const onlineVal = typeof online === "boolean" ? online : true;
+  const liderVal = typeof lider === "boolean" ? lider : false;
+  const poisVal: PoiSessao[] = Array.isArray(pois)
+    ? pois
+        .filter(
+          (p): p is PoiSessao =>
+            !!p &&
+            typeof p.id === "string" &&
+            typeof p.nome === "string" &&
+            typeof p.tipo === "string" &&
+            typeof p.lat === "number" &&
+            typeof p.lng === "number" &&
+            Number.isFinite(p.lat) &&
+            Number.isFinite(p.lng)
+        )
+        .slice(0, 50)
+        .map((p) => ({
+          id: p.id.slice(0, 40),
+          nome: p.nome.slice(0, 40),
+          tipo: p.tipo.slice(0, 20),
+          lat: p.lat,
+          lng: p.lng,
+        }))
+    : [];
 
   atualizarPosicao(sessaoId, {
     id,
@@ -52,6 +75,8 @@ export async function POST(
     status: statusVal,
     statusTs: statusTsVal,
     online: onlineVal,
+    lider: liderVal,
+    pois: liderVal ? poisVal : [],
   });
   return NextResponse.json({ ok: true });
 }
