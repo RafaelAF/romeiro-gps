@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft, Shield } from "lucide-react";
+import { Shield } from "lucide-react";
+import BotaoVoltar from "@/components/BotaoVoltar";
 
 export const metadata: Metadata = {
   title: "Política de Privacidade",
@@ -65,13 +65,7 @@ export default function PaginaPoliticaPrivacidade() {
   return (
     <main className="min-h-dvh bg-zinc-100">
       <div className="mx-auto max-w-2xl px-5 py-6">
-        <Link
-          href="/"
-          className="mb-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm active:scale-[.98]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Voltar
-        </Link>
+        <BotaoVoltar />
 
         <div className="flex items-center gap-3">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-700 text-white">
