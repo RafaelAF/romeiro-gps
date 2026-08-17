@@ -33,7 +33,7 @@ import {
 import "leaflet/dist/leaflet.css";
 import ModalPoi, { type PontoModalInfo } from "@/components/ModalPoi";
 import RotasPanel from "@/components/RotasPanel";
-import TutorialModal from "@/components/TutorialModal";
+import TutorialInterativo, { type PassoTutorial } from "@/components/TutorialInterativo";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 import { useSessaoRealtime } from "@/lib/useSessaoRealtime";
 import {
@@ -67,6 +67,57 @@ const STATUS_CONFIGS: Record<string, { label: string; cor: string }> = {
   "📍": { label: "Cheguei no ponto", cor: "#16a34a" },
   "🍕": { label: "Comendo/Comprando", cor: "#d97706" },
 };
+
+const PASSOS_TUTORIAL: PassoTutorial[] = [
+  {
+    seletor: 'button[aria-label="Menu"]',
+    titulo: "Menu",
+    texto:
+      "Aqui você acessa suas rotas particulares, este tutorial e a política de privacidade.",
+  },
+  {
+    seletor:
+      'button[aria-label="Compartilhar minha localização com o grupo"], button[aria-label="Parar de compartilhar localização"]',
+    titulo: "Compartilhar localização",
+    texto:
+      "Toque para compartilhar sua localização com o grupo em tempo real. Seu nome e posição aparecem no mapa de quem recebeu o link.",
+  },
+  {
+    seletor:
+      'button[aria-label="Ver minha localização"], button[aria-label="Ocultar minha localização"]',
+    titulo: "Minha localização",
+    texto:
+      "Mostra sua posição no mapa e a seta azul aponta para a direção em que você está olhando.",
+  },
+  {
+    seletor: 'button[aria-label="Ver todo o grupo no mapa"]',
+    titulo: "Ver grupo",
+    texto: "Ajusta o zoom para mostrar todos os membros online de uma vez.",
+  },
+  {
+    seletor: 'button[aria-label="Focar no ponto de encontro"]',
+    titulo: "Ponto de encontro",
+    texto: "Volta o mapa para o ponto de encontro definido pelo líder.",
+  },
+  {
+    obterAlvo: () =>
+      (Array.from(document.querySelectorAll(".leaflet-marker-icon")).find((el) =>
+        (el.textContent || "").includes("Líder"),
+      ) as HTMLElement | null) ?? null,
+    titulo: "Líder da caravana",
+    texto:
+      "O ícone dourado marca onde o líder está, quando ele compartilha a localização.",
+  },
+  {
+    obterAlvo: () =>
+      (Array.from(document.querySelectorAll(".leaflet-marker-icon")).find((el) =>
+        /^[HRA]$/.test((el.textContent || "").trim()),
+      ) as HTMLElement | null) ?? null,
+    titulo: "Pontos do líder",
+    texto:
+      "Hotéis, restaurantes e atrações criados pelo líder. Toque em um para ver detalhes e traçar a rota até ele.",
+  },
+];
 
 function CapturaMapa({ mapaRef }: { mapaRef: { current: L.Map | null } }) {
   const map = useMap();
@@ -136,7 +187,7 @@ export default function VerMapa({
   const [rotaAtivaId, setRotaAtivaId] = useState<string | null>(() => lerRotaAtivaId());
   const [panelAberto, setPanelAberto] = useState(false);
   const [menuAberto, setMenuAberto] = useState(false);
-  const [tutorialAberto, setTutorialAberto] = useState(false);
+  const [tutorialInterativo, setTutorialInterativo] = useState(false);
   const [modoCriarRota, setModoCriarRota] = useState(false);
   const [rotaEmCriacao, setRotaEmCriacao] = useState<{
     nome: string;
@@ -817,7 +868,7 @@ export default function VerMapa({
           <button
             type="button"
             onClick={() => {
-              setTutorialAberto(true);
+              setTutorialInterativo(true);
               setMenuAberto(false);
             }}
             className="flex w-full items-center gap-3 border-b border-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-800 active:bg-zinc-50"
@@ -1108,8 +1159,10 @@ export default function VerMapa({
         />
       )}
 
-      {/* Tutorial */}
-      {tutorialAberto && <TutorialModal aoFechar={() => setTutorialAberto(false)} />}
+      {/* Tutorial interativo */}
+      {tutorialInterativo && (
+        <TutorialInterativo passos={PASSOS_TUTORIAL} aoSair={() => setTutorialInterativo(false)} />
+      )}
 
       {/* Modal para Identificação do Seguidor */}
       {exibirModalNome && (
