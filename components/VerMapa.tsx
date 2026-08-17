@@ -79,43 +79,36 @@ const PASSOS_TUTORIAL: PassoTutorial[] = [
     seletor:
       'button[aria-label="Compartilhar minha localização com o grupo"], button[aria-label="Parar de compartilhar localização"]',
     titulo: "Compartilhar localização",
+    posicao: "esquerda",
     texto:
       "Toque para compartilhar sua localização com o grupo em tempo real. Seu nome e posição aparecem no mapa de quem recebeu o link.",
+  },
+  {
+    seletor: 'div[aria-label="Avisar o grupo"]',
+    titulo: "Avisar o grupo",
+    posicao: "direita",
+    texto:
+      "Envie um aviso para todos verem seu status: precisa de ajuda, a caminho, chegou no ponto ou comendo/comprando.",
   },
   {
     seletor:
       'button[aria-label="Ver minha localização"], button[aria-label="Ocultar minha localização"]',
     titulo: "Minha localização",
+    posicao: "esquerda",
     texto:
       "Mostra sua posição no mapa e a seta azul aponta para a direção em que você está olhando.",
   },
   {
     seletor: 'button[aria-label="Ver todo o grupo no mapa"]',
     titulo: "Ver grupo",
+    posicao: "esquerda",
     texto: "Ajusta o zoom para mostrar todos os membros online de uma vez.",
   },
   {
     seletor: 'button[aria-label="Focar no ponto de encontro"]',
     titulo: "Ponto de encontro",
+    posicao: "esquerda",
     texto: "Volta o mapa para o ponto de encontro definido pelo líder.",
-  },
-  {
-    obterAlvo: () =>
-      (Array.from(document.querySelectorAll(".leaflet-marker-icon")).find((el) =>
-        (el.textContent || "").includes("Líder"),
-      ) as HTMLElement | null) ?? null,
-    titulo: "Líder da caravana",
-    texto:
-      "O ícone dourado marca onde o líder está, quando ele compartilha a localização.",
-  },
-  {
-    obterAlvo: () =>
-      (Array.from(document.querySelectorAll(".leaflet-marker-icon")).find((el) =>
-        /^[HRA]$/.test((el.textContent || "").trim()),
-      ) as HTMLElement | null) ?? null,
-    titulo: "Pontos do líder",
-    texto:
-      "Hotéis, restaurantes e atrações criados pelo líder. Toque em um para ver detalhes e traçar a rota até ele.",
   },
 ];
 
@@ -973,7 +966,10 @@ export default function VerMapa({
 
       {/* Barra Flutuante de Reações (Emoji Shouts) no lado esquerdo */}
       {compartilhando && (
-        <div className="absolute left-3 top-1/2 z-[900] flex -translate-y-1/2 flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg border border-zinc-200">
+        <div
+          aria-label="Avisar o grupo"
+          className="absolute left-3 top-1/2 z-[900] flex -translate-y-1/2 flex-col gap-2 rounded-2xl bg-white/95 p-2 shadow-lg border border-zinc-200"
+        >
           <p className="text-[9px] font-extrabold uppercase tracking-wider text-zinc-400 text-center mb-1 select-none">
             Avisar
           </p>
