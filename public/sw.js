@@ -1,4 +1,4 @@
-const CACHE = "romeirogps-v2";
+const CACHE = "romeirogps-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

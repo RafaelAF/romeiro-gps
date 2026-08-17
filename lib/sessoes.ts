@@ -1,3 +1,11 @@
+export interface PoiSessao {
+  id: string;
+  nome: string;
+  tipo: string;
+  lat: number;
+  lng: number;
+}
+
 export interface PosicaoMembro {
   id: string;
   lat: number;
@@ -10,6 +18,8 @@ export interface PosicaoMembro {
   status: string;
   statusTs: number;
   online: boolean;
+  lider?: boolean;
+  pois?: PoiSessao[];
 }
 
 type Assinante = (p: PosicaoMembro) => void;

@@ -3,6 +3,7 @@ import type { PontoEncontro } from "@/lib/types";
 const CHAVE = "romeirogps:ponto-encontro";
 const CANAL = "romeirogps-ponto-encontro";
 const CHAVE_TELEFONE = "romeirogps:telefone";
+const CHAVE_SESSAO_LIDER = "romeirogps:sessao-lider";
 
 export function lerPontoEncontro(): PontoEncontro | null {
   try {
@@ -75,11 +76,31 @@ export function idLider(telefone: string): string {
   return `lid-${(hash >>> 0).toString(36)}`;
 }
 
-export const VALIDADE_LINK_MS = 48 * 60 * 60 * 1000;
+export const VALIDADE_LINK_MS = 24 * 60 * 60 * 1000;
 
-export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string): string {
+export function salvarSessaoLider(sessao: string): void {
+  try {
+    localStorage.setItem(CHAVE_SESSAO_LIDER, sessao);
+  } catch {
+    void 0;
+  }
+}
+
+export function lerSessaoLider(): string | null {
+  try {
+    return localStorage.getItem(CHAVE_SESSAO_LIDER);
+  } catch {
+    return null;
+  }
+}
+
+export function gerarLinkCompartilhamento(
+  ponto: PontoEncontro,
+  telefone: string
+): { url: string; sessao: string } {
   const origem = typeof window !== "undefined" ? window.location.origin : "";
   const sessao = Math.random().toString(36).slice(2, 10);
+  salvarSessaoLider(sessao);
   const params = new URLSearchParams({
     lider: idLider(telefone),
     lat: ponto.lat.toFixed(6),
@@ -92,6 +113,6 @@ export function gerarLinkCompartilhamento(ponto: PontoEncontro, telefone: string
   if (ponto.onibusCor) params.set("cor", ponto.onibusCor);
   if (ponto.onibusDetalhe) params.set("detalhe", ponto.onibusDetalhe);
   
-  return `${origem}/ver?${params.toString()}`;
+  return { url: `${origem}/ver?${params.toString()}`, sessao };
 }
 

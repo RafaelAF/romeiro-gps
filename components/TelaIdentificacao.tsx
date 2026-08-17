@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Info, ShieldCheck, Smartphone } from "lucide-react";
+import Link from "next/link";
+import { Info, Shield, ShieldCheck, Smartphone } from "lucide-react";
 
 interface TelaIdentificacaoProps {
   aoConfirmar: (telefone: string) => void;
@@ -67,6 +68,14 @@ export default function TelaIdentificacao({ aoConfirmar }: TelaIdentificacaoProp
           armazenados somente neste dispositivo.
         </p>
       </div>
+
+      <Link
+        href="/politica-privacidade"
+        className="flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-xs font-bold text-blue-100 backdrop-blur-sm active:bg-white/20"
+      >
+        <Shield className="h-4 w-4" />
+        Política de Privacidade (LGPD)
+      </Link>
     </div>
   );
 }

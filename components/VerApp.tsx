@@ -37,7 +37,7 @@ export default function VerApp({
       <div className="flex h-dvh flex-col items-center justify-center gap-4 bg-zinc-100 p-6 text-center">
         <p className="text-2xl font-extrabold text-blue-900">Link expirado</p>
         <p className="text-sm text-zinc-600">
-          Este link é válido por 48 horas após ser compartilhado. Peça ao líder um novo link.
+          Este link é válido por 24 horas após ser compartilhado. Peça ao líder um novo link.
         </p>
         <Link
           href="/"

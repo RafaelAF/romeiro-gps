@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useCaravanaTracking } from "@/lib/useCaravanaTracking";
 
+export interface PoiSessao {
+  id: string;
+  nome: string;
+  tipo: string;
+  lat: number;
+  lng: number;
+}
+
 export interface PosicaoMembro {
   id: string;
   lat: number;
@@ -15,6 +23,8 @@ export interface PosicaoMembro {
   status: string;
   statusTs: number;
   online: boolean;
+  lider?: boolean;
+  pois?: PoiSessao[];
 }
 
 const CORES = [
@@ -181,7 +191,7 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
   );
 
   useEffect(() => {
-    setAoAtualizar(({ lat, lng }) => {
+    return setAoAtualizar(({ lat, lng }) => {
       void publicarPosicao(lat, lng);
     });
   }, [setAoAtualizar, publicarPosicao]);
@@ -211,9 +221,13 @@ export function useSessaoRealtime(sessaoId: string | undefined) {
   }, [parar]);
 
   const membrosVisiveis = [...membros.values()].filter((m) => m.id !== membro.id);
+  const lider = membrosVisiveis.find((m) => m.lider) ?? null;
+  const poisLider = lider?.pois ?? [];
 
   return {
     membros: membrosVisiveis,
+    lider,
+    poisLider,
     meuId: membro.id,
     minhaCor: membro.cor,
     posicao,

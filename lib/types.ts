@@ -16,6 +16,42 @@ export interface Poi {
   lng: number;
 }
 
+export type TipoPoi = "hotel" | "restaurante" | "atracao";
+
+export interface PoiDinamico {
+  id: string;
+  nome: string;
+  tipo: TipoPoi;
+  lat: number;
+  lng: number;
+  criadoEm: number;
+}
+
+export interface CoordenadaRota {
+  lat: number;
+  lng: number;
+  ts?: number;
+  nome?: string;
+}
+
+export interface RotaPersonalizada {
+  id: string;
+  nome: string;
+  tipo: "personalizada";
+  pontos: CoordenadaRota[];
+  criadoEm: number;
+}
+
+export interface TrajetoGravado {
+  id: string;
+  nome: string;
+  tipo: "gravada";
+  pontos: CoordenadaRota[];
+  criadoEm: number;
+}
+
+export type Rota = RotaPersonalizada | TrajetoGravado;
+
 export interface Membro {
   id: string;
   nome: string;
