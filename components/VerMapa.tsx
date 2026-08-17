@@ -45,14 +45,31 @@ function iconeEncontro(): L.DivIcon {
   return L.divIcon({ className: "", html, iconSize: [36, 44], iconAnchor: [18, 42] });
 }
 
-function iconeMinhaPosicao(nome: string): L.DivIcon {
+function iconeMinhaPosicao(nome: string, rumo: number | null): L.DivIcon {
   const label = nome ? `Você (${nome})` : "Você";
+  
+  const coneHtml = rumo !== null
+    ? `<svg width="48" height="48" viewBox="0 0 48 48" style="position:absolute;top:-15px;left:-15px;transform:rotate(${rumo}deg);transform-origin:24px 24px;pointer-events:none;z-index:-1;">
+         <path d="M24 24 L10 2 A24 24 0 0 1 38 2 Z" fill="url(#blue-cone)" opacity="0.3" />
+         <path d="M24 16 L19 23 L24 21 L29 23 Z" fill="#1d4ed8" />
+         <defs>
+           <linearGradient id="blue-cone" x1="0%" y1="100%" x2="0%" y2="0%">
+             <stop offset="0%" stop-color="#2563eb" stop-opacity="0" />
+             <stop offset="100%" stop-color="#2563eb" stop-opacity="0.85" />
+           </linearGradient>
+         </defs>
+       </svg>`
+    : "";
+
   const html = `
-    <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-      <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 0 0 6px rgba(37,99,235,.25),0 1px 6px rgba(0,0,0,.35);"></div>
-      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;">${label}</span>
+    <div style="display:flex;flex-direction:column;align-items:center;position:relative;width:18px;height:44px;">
+      <div style="position:relative;width:18px;height:18px;">
+        ${coneHtml}
+        <div style="width:18px;height:18px;border-radius:9999px;background:#2563eb;border:3px solid #ffffff;box-shadow:0 1px 6px rgba(0,0,0,.35);position:absolute;top:0;left:0;"></div>
+      </div>
+      <span style="font-size:11px;font-weight:700;background:rgba(255,255,255,.95);padding:1px 6px;border-radius:6px;color:#1d4ed8;box-shadow:0 1px 4px rgba(0,0,0,.15);white-space:nowrap;margin-top:2px;">${label}</span>
     </div>`;
-  return L.divIcon({ className: "", html, iconSize: [80, 44], iconAnchor: [40, 22] });
+  return L.divIcon({ className: "", html, iconSize: [18, 44], iconAnchor: [9, 9] });
 }
 
 function iconeMembro(cor: string, label: string, online: boolean, status: string, statusAtivo: boolean): L.DivIcon {
@@ -119,12 +136,91 @@ export default function VerMapa({
   const [nomeInput, setNomeInput] = useState("");
   const [erroNome, setErroNome] = useState<string | null>(null);
   const [agora, setAgora] = useState(() => Date.now());
+  const [rumo, setRumo] = useState<number | null>(null);
 
   // Atualiza o timer interno a cada segundo para refrescar status e tempo offline
   useEffect(() => {
     const int = setInterval(() => setAgora(Date.now()), 1000);
     return () => clearInterval(int);
   }, []);
+
+  // Monitora a bússola do dispositivo (orientação)
+  useEffect(() => {
+    const ativo = mostrarLocal || compartilhando;
+    if (!ativo) {
+      return;
+    }
+
+    const aoMudarOrientacao = (e: DeviceOrientationEvent) => {
+      if ("webkitCompassHeading" in e) {
+        setRumo(e.webkitCompassHeading as number);
+      } else if (e.alpha !== null) {
+        setRumo(360 - e.alpha);
+      }
+    };
+
+    const ativarListener = () => {
+      const w = window as unknown as EventTarget;
+      if ("ondeviceorientationabsolute" in window) {
+        w.addEventListener("deviceorientationabsolute", aoMudarOrientacao as EventListener);
+      } else {
+        w.addEventListener("deviceorientation", aoMudarOrientacao as EventListener);
+      }
+    };
+
+    const DeviceOrientationWithPerms = typeof window !== "undefined"
+      ? (window as unknown as {
+          DeviceOrientationEvent?: {
+            requestPermission?: () => Promise<PermissionState>;
+          };
+        }).DeviceOrientationEvent
+      : undefined;
+
+    if (
+      DeviceOrientationWithPerms &&
+      typeof DeviceOrientationWithPerms.requestPermission === "function"
+    ) {
+      DeviceOrientationWithPerms.requestPermission()
+        .then((state) => {
+          if (state === "granted") {
+            ativarListener();
+          }
+        })
+        .catch(() => void 0);
+    } else {
+      ativarListener();
+    }
+
+    return () => {
+      const w = window as unknown as EventTarget;
+      w.removeEventListener("deviceorientationabsolute", aoMudarOrientacao as EventListener);
+      w.removeEventListener("deviceorientation", aoMudarOrientacao as EventListener);
+      setRumo(null);
+    };
+  }, [mostrarLocal, compartilhando]);
+
+  const solicitarPermissaoBussola = () => {
+    const DeviceOrientationWithPerms = typeof window !== "undefined"
+      ? (window as unknown as {
+          DeviceOrientationEvent?: {
+            requestPermission?: () => Promise<PermissionState>;
+          };
+        }).DeviceOrientationEvent
+      : undefined;
+
+    if (
+      DeviceOrientationWithPerms &&
+      typeof DeviceOrientationWithPerms.requestPermission === "function"
+    ) {
+      DeviceOrientationWithPerms.requestPermission()
+        .then((state) => {
+          if (state === "granted") {
+            // O effect acima irá registrar o listener
+          }
+        })
+        .catch(() => void 0);
+    }
+  };
 
   const posicao = compartilhando ? posicaoCompartilhada : posicaoLocal;
 
@@ -155,6 +251,7 @@ export default function VerMapa({
   };
 
   const aoTocarLocalizacao = () => {
+    solicitarPermissaoBussola();
     if (mostrarLocal && (status === "negado" || status === "erro")) {
       tentarNovamente();
       return;
@@ -171,6 +268,7 @@ export default function VerMapa({
   };
 
   const aoTocarCompartilhar = () => {
+    solicitarPermissaoBussola();
     if (compartilhando) {
       desativarCompartilhamento();
     } else {
@@ -187,6 +285,7 @@ export default function VerMapa({
   };
 
   const confirmarNome = () => {
+    solicitarPermissaoBussola();
     const limpo = nomeInput.trim();
     if (limpo.length < 2) {
       setErroNome("O nome deve ter pelo menos 2 caracteres.");
@@ -335,7 +434,7 @@ export default function VerMapa({
               radius={40}
               pathOptions={{ color: "#2563eb", weight: 1, fillColor: "#2563eb", fillOpacity: 0.08 }}
             />
-            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao(nome)}>
+            <Marker position={[posicao.lat, posicao.lng]} icon={iconeMinhaPosicao(nome, rumo)}>
               <Popup>
                 <div className="text-sm">
                   <p className="font-extrabold text-blue-900">Você {nome ? `(${nome})` : ""}</p>
