@@ -36,6 +36,36 @@ atual (fluxos, payloads e simulações) e melhorias priorizadas para implementar
    (z13–16) no SW para uso offline/first paint rápido.
 6. **Remover `@vercel/analytics`** — um domínio a menos em sinal fraco (opcional).
 
+## SEO e indexação (sugestões)
+
+Melhorias para o app ser encontrado no Google/Bing e aparecer com rich snippets. O FUTURE.md foca
+em rede; daqui, itens 1 (cache-first de tiles) e 5 (pré-cache) também melhoram Core Web Vitals
+(LCP/INP), que é fator de ranking.
+
+Estado atual:
+- Home é 100% client-render (`CaravanaAppLoader` com `ssr: false`) — HTML servido quase sem texto;
+  os POIs ficam em GeoJSON local e nunca são indexados.
+- Só 2 URLs indexáveis: `/` (vazia para crawler) e `/politica-privacidade`.
+- Sem `sitemap.xml`, `robots.txt`, `opengraph-image` nem dados estruturados (JSON-LD).
+- `/ver` aceita `lat/lng` na URL sem `noindex` — risco de URLs efêmeras indexadas.
+- Metadados genéricos, sem palavras-chave locais (Santuário Nacional, Caminho da Fé, caravana).
+
+Melhorias priorizadas:
+
+1. **SSR/SSG da lista de POIs** — renderizar POIs (nome + categoria + cidade) como HTML real na
+   home e hidratar o mapa Leaflet depois (`ssr: false`, padrão já usado). Maior ganho de indexação.
+2. **Páginas por categoria de POI** — `/pontos-de-interesse` e `/categorias/[slug]` com JSON-LD
+   `Place`/`TouristAttraction`; captura buscas como "onde fica a basílica de Aparecida".
+3. **Metadados ricos** — titles/descriptions por página com keywords locais; `opengraph-image`
+   dinâmico + `twitter:card` (o link preview atual no WhatsApp é genérico); `canonical` na home.
+4. **`noindex` em `/ver`** — via `robots.metadata` no App Router; conteúdo é efêmero (48 h) e
+   muda de URL a cada ponto.
+5. **`sitemap.ts` + `robots.ts`** — listar `/`, `/politica-privacidade` e páginas de POI.
+6. **FAQ/FAQPage (long-tail)** — bloco de conteúdo SSR (ex.: "Como chegar a Aparecida de ônibus?",
+   "Como funciona a caravana?") com JSON-LD `FAQPage`.
+7. **Consistência da privacidade** — seção 6 diz "24 horas", mas o app usa 48 h
+   (`VALIDADE_LINK_MS`); página é a única com texto indexável hoje, manter coerente.
+
 ## Escalabilidade (tempo real)
 
 Problemas identificados ao crescer / ir para produção:
