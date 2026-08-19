@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import CaravanaAppLoader from "@/components/CaravanaAppLoader";
-import SeoHome from "@/components/SeoHome";
 
 export const metadata: Metadata = {
   title: "Mapa de Aparecida - SP com pontos de interesse e ponto de encontro",
@@ -12,10 +11,5 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  return (
-    <>
-      <CaravanaAppLoader />
-      <SeoHome />
-    </>
-  );
+  return <CaravanaAppLoader />;
 }
