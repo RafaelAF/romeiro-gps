@@ -1,7 +1,8 @@
 import { CATEGORIAS, POIS } from "@/lib/pois";
 import type { CategoriaPoi, Poi } from "@/lib/types";
 
-export const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://romeirogps.app.br";
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://romeiro-gps.vercel.app";
 
 export function slugificar(texto: string): string {
   return texto
