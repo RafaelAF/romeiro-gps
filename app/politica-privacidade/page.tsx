@@ -6,6 +6,15 @@ export const metadata: Metadata = {
   title: "Política de Privacidade",
   description:
     "Política de Privacidade (LGPD) do RomeiroGPS - Aparecida SP. Entenda como seus dados são tratados.",
+  alternates: {
+    canonical: "/politica-privacidade",
+  },
+  openGraph: {
+    title: "Política de Privacidade | RomeiroGPS",
+    description:
+      "Política de Privacidade (LGPD) do RomeiroGPS - Aparecida SP.",
+    url: "/politica-privacidade",
+  },
 };
 
 const SECOES: { titulo: string; texto: string }[] = [

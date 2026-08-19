@@ -14,13 +14,54 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://romeirogps.app.br"
+  ),
   title: {
-    default: "RomeiroGPS - Aparecida SP",
+    default: "RomeiroGPS - Mapa de turismo em Aparecida - SP",
     template: "%s | RomeiroGPS",
   },
   description:
-    "Turismo, pontos de interesse e caravanas em tempo real em Aparecida - SP.",
+    "RomeiroGPS: mapa de pontos de interesse, rotas e caravanas em Aparecida - SP. Encontre o Santuário Nacional, pontos de turismo religioso, apoio ao romeiro, saúde, transporte e lazer.",
   applicationName: "RomeiroGPS",
+  keywords: [
+    "Aparecida SP",
+    "Santuário Nacional",
+    "Caminho da Fé",
+    "caravana",
+    "turismo religioso",
+    "ponto de encontro",
+    "basílica de Aparecida",
+    "mapa de Aparecida",
+  ],
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "RomeiroGPS",
+    title: "RomeiroGPS - Mapa de turismo em Aparecida - SP",
+    description:
+      "Mapa de pontos de interesse, rotas e caravanas em Aparecida - SP. Encontre o Santuário Nacional, pontos de turismo religioso, apoio ao romeiro e mais.",
+    locale: "pt_BR",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RomeiroGPS - Mapa de turismo em Aparecida - SP",
+    description:
+      "Mapa de pontos de interesse, rotas e caravanas em Aparecida - SP.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export const viewport: Viewport = {

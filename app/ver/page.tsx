@@ -4,6 +4,10 @@ import VerApp from "@/components/VerApp";
 
 export const metadata: Metadata = {
   title: "Ponto de encontro",
+  robots: {
+    index: false,
+    follow: false,
+  },
 };
 
 export default async function PaginaVer({
