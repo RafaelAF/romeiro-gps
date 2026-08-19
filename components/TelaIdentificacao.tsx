@@ -22,7 +22,7 @@ export default function TelaIdentificacao({ aoConfirmar }: TelaIdentificacaoProp
   };
 
   return (
-    <div className="flex h-dvh w-full flex-col items-center justify-center gap-6 overflow-y-auto bg-gradient-to-b from-blue-900 via-blue-700 to-blue-600 p-6">
+    <div className="absolute inset-0 z-[1000] flex h-full w-full flex-col items-center justify-center gap-6 overflow-y-auto bg-zinc-900/70 p-6 backdrop-blur-sm">
       <div className="text-center">
         <p className="text-3xl font-extrabold text-white">RomeiroGPS</p>
         <p className="mt-1 text-sm font-medium text-blue-100">Aparecida - SP</p>

@@ -419,10 +419,6 @@ export default function CaravanaApp() {
     }
   }, [avisos, mostrarFeedback]);
 
-  if (!telefone) {
-    return <TelaIdentificacao aoConfirmar={confirmarTelefone} />;
-  }
-
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-zinc-100">
       <div className="absolute inset-0">
@@ -442,6 +438,10 @@ export default function CaravanaApp() {
         />
       </div>
 
+      {!telefone ? (
+        <TelaIdentificacao aoConfirmar={confirmarTelefone} />
+      ) : (
+        <>
       <header className="pointer-events-none absolute inset-x-0 top-0 z-[900] flex items-center justify-between p-3">
         <div className="pointer-events-auto rounded-2xl bg-white/95 px-4 py-2 shadow-md">
           <p className="text-base font-extrabold text-blue-900">RomeiroGPS</p>
@@ -577,6 +577,8 @@ export default function CaravanaApp() {
       )}
 
       {tutorialAberto && <TutorialModal aoFechar={() => setTutorialAberto(false)} />}
+        </>
+      )}
     </div>
   );
 }
